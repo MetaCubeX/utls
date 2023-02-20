@@ -542,6 +542,23 @@ func (c *UConn) clientHandshake(ctx context.Context) (err error) {
 		}()
 	}
 
+	// A random session ID is used to detect when the server accepted a ticket
+	// and is resuming a session (see RFC 5077). In TLS 1.3, it's always set as
+	// a compatibility measure (see RFC 8446, Section 4.1.2).
+	if c.config.SessionIDGenerator != nil {
+		hello.sessionId = make([]byte, 32)
+		hello.raw = nil
+		data, err := hello.marshal()
+		if err != nil {
+			return err
+		}
+		err = c.config.SessionIDGenerator(data, hello.sessionId)
+		if err != nil {
+			return errors.New("tls: generate session id failed: " + err.Error())
+		}
+		hello.raw = nil
+	}
+
 	if _, err := c.writeHandshakeRecord(hello, nil); err != nil {
 		return err
 	}

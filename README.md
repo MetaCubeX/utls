@@ -1,6 +1,6 @@
 # ![uTLS](logo_small.png) uTLS
-[![Build Status](https://github.com/refraction-networking/utls/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/refraction-networking/utls/actions/workflows/go.yml) 
-[![godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/refraction-networking/utls#UConn)
+[![Build Status](https://github.com/metacubex/utls/actions/workflows/go.yml/badge.svg?branch=master)](https://github.com/metacubex/utls/actions/workflows/go.yml) 
+[![godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/metacubex/utls#UConn)
 ---
 uTLS is a fork of "crypto/tls", which provides ClientHello fingerprinting resistance, low-level access to handshake, fake session tickets and some other features. Handshake is still performed by "crypto/tls", this library merely changes ClientHello part of it and provides low-level access.  
 
@@ -11,7 +11,7 @@ If you have any questions, bug reports or contributions, you are welcome to publ
 You can contact one of developers personally via gaukas.wang@colorado.edu.
 
 Documentation below may not keep up with all the changes and new features at all times,
-so you are encouraged to use [godoc](https://godoc.org/github.com/refraction-networking/utls#UConn).
+so you are encouraged to use [godoc](https://godoc.org/github.com/metacubex/utls#UConn).
 
 *Note: Information provided below in this README.md could be obsolete. We welcome 
 any contributions to refresh the documentations in addition to code contributions.*
@@ -86,11 +86,11 @@ This is not a problem, if you fully control the server and turn unsupported thin
 #### Parrots FAQ
 > Does it really look like, say, Google Chrome with all the [GREASE](https://tools.ietf.org/html/draft-davidben-tls-grease-01) and stuff?
 
-It LGTM, but please open up Wireshark and check. If you see something — [say something](https://github.com/refraction-networking/utls/issues).
+It LGTM, but please open up Wireshark and check. If you see something — [say something](https://github.com/metacubex/utls/issues).
 
 > Aren't there side channels? Everybody knows that the ~~bird is a word~~[parrot is dead](https://people.cs.umass.edu/~amir/papers/parrot.pdf)
 
-There sure are. If you found one that approaches practicality at line speed — [please tell us](https://github.com/refraction-networking/utls/issues).
+There sure are. If you found one that approaches practicality at line speed — [please tell us](https://github.com/metacubex/utls/issues).
 
 However, there is a difference between this sort of parroting and techniques like SkypeMorth.
 Namely, TLS is highly standardized protocol, therefore simply not that many subtle things in TLS protocol
@@ -235,7 +235,7 @@ Then it can be used just like normal extension:
 ```
 
 # Client Hello IDs
-See full list of `clientHelloID` values [here](https://godoc.org/github.com/refraction-networking/utls#ClientHelloID).  
+See full list of `clientHelloID` values [here](https://godoc.org/github.com/metacubex/utls#ClientHelloID).  
 There are different behaviors you can get, depending  on your `clientHelloID`:
 
 1. ```utls.HelloRandomized``` adds/reorders extensions, ciphersuites, etc. randomly.  
@@ -273,7 +273,7 @@ Here's how default "crypto/tls" is typically used:
     //...
 ```
 To start using using uTLS:
-1. Import this library (e.g. `import tls "github.com/refraction-networking/utls"`)
+1. Import this library (e.g. `import tls "github.com/metacubex/utls"`)
 2. Pick the [Client Hello ID](#client-hello-ids)
 3. Simply substitute `tlsConn := tls.Client(dialConn, &config)`
 with `tlsConn := tls.UClient(dialConn, &config, tls.clientHelloID)`  

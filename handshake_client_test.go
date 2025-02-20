@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/refraction-networking/utls/internal/byteorder"
+	"github.com/metacubex/utls/internal/byteorder"
 )
 
 // Note: see comment in handshake_test.go for details of how the reference

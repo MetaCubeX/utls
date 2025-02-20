@@ -17,8 +17,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/refraction-networking/utls/dicttls"
-	"github.com/refraction-networking/utls/internal/mlkem768"
+	"github.com/metacubex/utls/dicttls"
+	"github.com/metacubex/utls/internal/mlkem768"
 )
 
 var ErrUnknownClientHelloID = errors.New("tls: unknown ClientHelloID")

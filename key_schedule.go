@@ -12,7 +12,7 @@ import (
 	"hash"
 	"io"
 
-	"github.com/refraction-networking/utls/internal/mlkem768"
+	"github.com/metacubex/utls/internal/mlkem768"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/sha3"

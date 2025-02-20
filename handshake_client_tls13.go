@@ -18,7 +18,7 @@ import (
 	"hash"
 	"time"
 
-	"github.com/refraction-networking/utls/internal/mlkem768"
+	"github.com/metacubex/utls/internal/mlkem768"
 
 	"github.com/cloudflare/circl/kem"
 )

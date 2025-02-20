@@ -16,8 +16,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/refraction-networking/utls/internal/byteorder"
-	"github.com/refraction-networking/utls/internal/mlkem768"
+	"github.com/metacubex/utls/internal/byteorder"
+	"github.com/metacubex/utls/internal/mlkem768"
 )
 
 // maxClientPSKIdentities is the number of client PSK identities the server will

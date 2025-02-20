@@ -12,7 +12,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/refraction-networking/utls/internal/mlkem768"
+	"github.com/metacubex/utls/internal/mlkem768"
 )
 
 // This file contains tests derived from draft-ietf-tls-tls13-vectors-07.

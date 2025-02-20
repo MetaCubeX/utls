@@ -14,8 +14,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"hash"
-	"slices"
 	"time"
 
 	"github.com/refraction-networking/utls/internal/mlkem768"

@@ -11,9 +11,9 @@ import (
 	"crypto/hmac"
 	"crypto/rsa"
 	"errors"
+	"golang.org/x/exp/slices"
 	"hash"
 	"io"
-	"slices"
 	"time"
 
 	"github.com/refraction-networking/utls/internal/byteorder"

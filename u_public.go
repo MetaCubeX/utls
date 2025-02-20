@@ -41,9 +41,6 @@ type PubClientHandshakeState struct {
 
 // TLS 1.3 only
 type TLS13OnlyState struct {
-	// Deprecated: Use KeyShareKeys instead. KeyShareKeys will take precedence if both are set.
-	// Support may be removed in the future.
-	EcdheKey        *ecdh.PrivateKey
 	KeySharesParams *KeySharesParameters
 	KEMKey          *KemPrivateKey
 
@@ -101,12 +98,6 @@ func (chs *TLS13OnlyState) private13KeyShareKeys() *keySharePrivateKeys {
 				kyber: kyberKey,
 				ecdhe: ecdhKey,
 			}
-		}
-	}
-
-	if chs.EcdheKey != nil {
-		return &keySharePrivateKeys{
-			ecdhe: chs.EcdheKey,
 		}
 	}
 

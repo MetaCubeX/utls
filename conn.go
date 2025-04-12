@@ -187,6 +187,11 @@ type halfConn struct {
 
 	level         QUICEncryptionLevel // current QUIC encryption level
 	trafficSecret []byte              // current TLS 1.3 traffic secret
+
+	// [REALITY SECTION BEGINS]
+	handshakeLen [7]uint16
+	handshakeBuf []byte
+	// [REALITY SECTION ENDS]
 }
 
 type permanentError struct {
@@ -529,9 +534,42 @@ func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, err
 
 			// Encrypt the actual ContentType and replace the plaintext one.
 			record = append(record, record[0])
+			// [REALITY SECTION BEGINS]
+			padding := 0
+			if recordType(record[0]) == recordTypeHandshake && hc.handshakeLen[1] != 0 {
+				switch payload[0] {
+				case typeEncryptedExtensions:
+					padding = int(hc.handshakeLen[2])
+					hc.handshakeLen[2] = 0
+				case typeCertificate:
+					padding = int(hc.handshakeLen[3])
+					hc.handshakeLen[3] = 0
+				case typeCertificateVerify:
+					padding = int(hc.handshakeLen[4])
+					hc.handshakeLen[4] = 0
+				case typeFinished:
+					padding = int(hc.handshakeLen[5])
+					hc.handshakeLen[5] = 0
+				case typeNewSessionTicket:
+					padding = int(hc.handshakeLen[6])
+					hc.handshakeLen[6] = 0
+					record[5] = byte(recordTypeApplicationData)
+					record[6] = 0
+				}
+				padding -= len(record) + c.Overhead()
+				if padding < 0 {
+					return nil, fmt.Errorf("payload[0]: %v, padding: %v", payload[0], padding)
+				}
+				record = append(record, make([]byte, padding)...)
+			}
+			// [REALITY SECTION ENDS]
+
 			record[0] = byte(recordTypeApplicationData)
 
 			n := len(payload) + 1 + c.Overhead()
+			// [REALITY SECTION BEGINS]
+			n += padding
+			// [REALITY SECTION ENDS]
 			record[3] = byte(n >> 8)
 			record[4] = byte(n)
 
@@ -1071,6 +1109,17 @@ func (c *Conn) writeHandshakeRecord(msg handshakeMessage, transcript transcriptH
 	if transcript != nil {
 		transcript.Write(data)
 	}
+
+	// [REALITY SECTION BEGINS]
+	if c.out.handshakeBuf != nil && len(data) > 0 && data[0] != typeServerHello {
+		c.out.handshakeBuf = append(c.out.handshakeBuf, data...)
+		if data[0] != typeFinished {
+			return len(data), nil
+		}
+		data = c.out.handshakeBuf
+		c.out.handshakeBuf = nil
+	}
+	// [REALITY SECTION ENDS]
 
 	return c.writeRecordLocked(recordTypeHandshake, data)
 }

@@ -321,15 +321,12 @@ func (m *clientHelloMsg) marshalMsgReorderOuterExts(echInner bool, outerExts []u
 	// [uTLS SECTION BEGIN]
 	// reorder OuterExtensions according to their order in the spec
 	if echInner && outerExts != nil {
-		echOuterExtsReordered := slices.Collect(func(yield func(uint16) bool) {
-			for _, ext := range outerExts {
-				if slices.Contains(echOuterExts, ext) {
-					if !yield(ext) {
-						return
-					}
-				}
+		echOuterExtsReordered := make([]uint16, 0, len(outerExts))
+		for _, ext := range outerExts {
+			if slices.Contains(echOuterExts, ext) {
+				echOuterExtsReordered = append(echOuterExtsReordered, ext)
 			}
-		})
+		}
 		echOuterExts = echOuterExtsReordered
 	}
 	// [uTLS SECTION END]

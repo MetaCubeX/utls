@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/metacubex/utls/mlkem"
+
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
@@ -138,10 +140,30 @@ func (hs *realityServerHandshakeStateTLS13) handshake() error {
 		c.cipherSuite = hs.suite.id
 		hs.transcript = hs.suite.hash.New()
 
+		var peerData []byte
+		for _, keyShare := range hs.clientHello.keyShares {
+			if keyShare.group == hs.hello.serverShare.group {
+				peerData = keyShare.data
+				break
+			}
+		}
+
+		var peerPub = peerData
+		if hs.hello.serverShare.group == X25519MLKEM768 {
+			peerPub = peerData[mlkem.EncapsulationKeySize768:]
+		}
+
 		key, _ := generateECDHEKey(c.config.rand(), X25519)
 		copy(hs.hello.serverShare.data, key.PublicKey().Bytes())
-		peerKey, _ := key.Curve().NewPublicKey(hs.clientHello.keyShares[hs.clientHello.keyShares[0].group].data)
+		peerKey, _ := key.Curve().NewPublicKey(peerPub)
 		hs.sharedKey, _ = key.ECDH(peerKey)
+
+		if hs.hello.serverShare.group == X25519MLKEM768 {
+			k, _ := mlkem.NewEncapsulationKey768(peerData[:mlkem.EncapsulationKeySize768])
+			mlkemSharedSecret, ciphertext := k.Encapsulate()
+			hs.sharedKey = append(mlkemSharedSecret, hs.sharedKey...)
+			copy(hs.hello.serverShare.data, append(ciphertext, hs.hello.serverShare.data[:32]...))
+		}
 
 		c.serverName = hs.clientHello.serverName
 	}
@@ -268,7 +290,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			if copying || err != nil || hs.c.vers != VersionTLS13 || !config.ServerNames[hs.clientHello.serverName] {
 				break
 			}
-			for i, keyShare := range hs.clientHello.keyShares {
+			for _, keyShare := range hs.clientHello.keyShares {
 				if keyShare.group != X25519 || len(keyShare.data) != 32 {
 					continue
 				}
@@ -310,7 +332,6 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 					(config.ShortIds[hs.ClientShortId]) {
 					hs.c.conn = conn
 				}
-				hs.clientHello.keyShares[0].group = CurveID(i)
 				break
 			}
 			if config.Log != nil {
@@ -396,7 +417,8 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 					if !hs.hello.unmarshal(s2cSaved[recordHeaderLen:handshakeLen]) ||
 						hs.hello.vers != VersionTLS12 || hs.hello.supportedVersion != VersionTLS13 ||
 						cipherSuiteTLS13ByID(hs.hello.cipherSuite) == nil ||
-						hs.hello.serverShare.group != X25519 || len(hs.hello.serverShare.data) != 32 {
+						(!(hs.hello.serverShare.group == X25519 && len(hs.hello.serverShare.data) == 32) &&
+							!(hs.hello.serverShare.group == X25519MLKEM768 && len(hs.hello.serverShare.data) == mlkem.CiphertextSize768+32)) {
 						break f
 					}
 				}

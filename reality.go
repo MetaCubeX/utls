@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/metacubex/utls/internal/ratelimit"
 	"github.com/metacubex/utls/mlkem"
 
 	"golang.org/x/crypto/chacha20poly1305"
@@ -88,6 +89,12 @@ func realityValue(vals ...byte) (value int) {
 	return
 }
 
+type RealityLimitFallback struct {
+	AfterBytes       uint64
+	BytesPerSec      uint64
+	BurstBytesPerSec uint64
+}
+
 type RealityConfig struct {
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
 
@@ -103,7 +110,64 @@ type RealityConfig struct {
 	MaxTimeDiff  time.Duration
 	ShortIds     map[[8]byte]bool
 
+	LimitFallbackUpload   RealityLimitFallback
+	LimitFallbackDownload RealityLimitFallback
+
 	Config
+}
+
+func (a *RealityConfig) Clone() *RealityConfig {
+	return &RealityConfig{
+		DialContext:           a.DialContext,
+		Log:                   a.Log,
+		Type:                  a.Type,
+		Dest:                  a.Dest,
+		Xver:                  a.Xver,
+		ServerNames:           a.ServerNames,
+		PrivateKey:            a.PrivateKey,
+		MinClientVer:          a.MinClientVer,
+		MaxClientVer:          a.MaxClientVer,
+		MaxTimeDiff:           a.MaxTimeDiff,
+		ShortIds:              a.ShortIds,
+		LimitFallbackUpload:   a.LimitFallbackUpload,
+		LimitFallbackDownload: a.LimitFallbackDownload,
+		Config:                *a.Config.Clone(),
+	}
+}
+
+type rateLimitedConn struct {
+	net.Conn
+	After  int64
+	Bucket *ratelimit.Bucket
+}
+
+func (c *rateLimitedConn) Read(b []byte) (int, error) {
+	n, err := c.Conn.Read(b)
+	if n != 0 {
+		if c.After > 0 {
+			c.After -= int64(n)
+		} else {
+			c.Bucket.Wait(int64(n))
+		}
+	}
+	return n, err
+}
+
+func newRateLimitedConn(conn net.Conn, limit *RealityLimitFallback) net.Conn {
+	if limit.BytesPerSec == 0 {
+		return conn
+	}
+
+	burstBytesPerSec := limit.BurstBytesPerSec
+	if burstBytesPerSec < limit.BytesPerSec {
+		burstBytesPerSec = limit.BytesPerSec
+	}
+
+	return &rateLimitedConn{
+		Conn:   conn,
+		After:  int64(limit.AfterBytes),
+		Bucket: ratelimit.NewBucketWithRate(float64(limit.BytesPerSec), int64(burstBytesPerSec)),
+	}
 }
 
 var (
@@ -344,7 +408,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			if config.Log != nil && hs.clientHello != nil {
 				config.Log("REALITY remoteAddr: %v forwarded SNI: %v", remoteAddr, hs.clientHello.serverName)
 			}
-			io.Copy(target, underlying)
+			io.Copy(target, newRateLimitedConn(underlying, &config.LimitFallbackUpload))
 		}
 		waitGroup.Done()
 	}()
@@ -462,12 +526,12 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			if hs.c.conn == conn { // if we processed the Client Hello successfully but the target did not
 				waitGroup.Add(1)
 				go func() {
-					io.Copy(target, underlying)
+					io.Copy(target, newRateLimitedConn(underlying, &config.LimitFallbackUpload))
 					waitGroup.Done()
 				}()
 			}
 			conn.Write(s2cSaved)
-			io.Copy(underlying, target)
+			io.Copy(underlying, newRateLimitedConn(target, &config.LimitFallbackDownload))
 		}
 		waitGroup.Done()
 	}()

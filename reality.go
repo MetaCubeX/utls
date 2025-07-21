@@ -188,10 +188,12 @@ type realityServerHandshakeStateTLS13 struct {
 	ClientVer     [3]byte
 	ClientTime    time.Time
 	ClientShortId [8]byte
+	Config        *RealityConfig
 }
 
 func (hs *realityServerHandshakeStateTLS13) handshake() error {
 	c := hs.c
+	config := hs.Config
 
 	// For an overview of the TLS 1.3 handshake, see RFC 8446, Section 2.
 	/*
@@ -200,6 +202,10 @@ func (hs *realityServerHandshakeStateTLS13) handshake() error {
 		}
 	*/
 	{
+		if config.Log != nil {
+			config.Log("REALITY remoteAddr: %v\tusing X25519MLKEM768: %v", c.RemoteAddr().String(), hs.hello.serverShare.group == X25519MLKEM768)
+		}
+
 		hs.suite = cipherSuiteTLS13ByID(hs.hello.cipherSuite)
 		c.cipherSuite = hs.suite.id
 		hs.transcript = hs.suite.hash.New()
@@ -340,6 +346,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			},
 			ctx: context.Background(),
 		},
+		Config: config,
 	}
 
 	copying := false

@@ -203,7 +203,7 @@ func (hs *realityServerHandshakeStateTLS13) handshake() error {
 	*/
 	{
 		if config.Log != nil {
-			config.Log("REALITY remoteAddr: %v\tusing X25519MLKEM768: %v", c.RemoteAddr().String(), hs.hello.serverShare.group == X25519MLKEM768)
+			config.Log("REALITY remoteAddr: %v using X25519MLKEM768: %v", c.RemoteAddr().String(), hs.hello.serverShare.group == X25519MLKEM768)
 		}
 
 		hs.suite = cipherSuiteTLS13ByID(hs.hello.cipherSuite)

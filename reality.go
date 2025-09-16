@@ -411,7 +411,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 				}
 				if (config.MinClientVer == nil || realityValue(hs.ClientVer[:]...) >= realityValue(config.MinClientVer...)) &&
 					(config.MaxClientVer == nil || realityValue(hs.ClientVer[:]...) <= realityValue(config.MaxClientVer...)) &&
-					(config.MaxTimeDiff == 0 || time.Since(hs.ClientTime).Abs() <= config.MaxTimeDiff) &&
+					(config.MaxTimeDiff == 0 || config.time().Sub(hs.ClientTime).Abs() <= config.MaxTimeDiff) &&
 					(config.ShortIds[hs.ClientShortId]) {
 					hs.c.conn = conn
 				}

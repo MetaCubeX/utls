@@ -15,14 +15,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"hash"
 	"io"
 	"net"
 	"strings"
 	"time"
 
-	"github.com/metacubex/utls/internal/byteorder"
+	"golang.org/x/exp/slices"
+
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/hpke"
 	"github.com/metacubex/utls/internal/mlkem"
@@ -42,8 +42,6 @@ type clientHandshakeState struct {
 
 	uconn *UConn // [uTLS]
 }
-
-var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
 
 func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echClientContext, error) {
 	config := c.config
@@ -129,9 +127,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 	if maxVersion >= VersionTLS12 {
 		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms(minVersion)
 		hello.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithmsCert()
-	}
-	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
-		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
 	}
 
 	var keyShareKeys *keySharePrivateKeys
@@ -777,8 +772,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			c.sendAlert(alertIllegalParameter)
 			return err
 		}
-		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
-			c.curveID = CurveID(byteorder.BEUint16(skx.key[1:]))
+		if keyAgreement, ok := keyAgreement.(*ecdheKeyAgreement); ok {
+			c.curveID = keyAgreement.curveID
+			c.peerSigAlg = keyAgreement.signatureAlgorithm
 		}
 
 		msg, err = c.readHandshake(&hs.finishedHash)
@@ -860,7 +856,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		if c.vers >= VersionTLS12 {
 			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms)
 			if err != nil {
-				c.sendAlert(alertIllegalParameter)
+				c.sendAlert(alertHandshakeFailure)
 				return err
 			}
 			sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)

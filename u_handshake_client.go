@@ -224,7 +224,7 @@ func (c *Conn) makeClientHelloForApplyPreset() (*clientHelloMsg, *keySharePrivat
 	if !hasAESGCMHardwareSupport {
 		preferenceOrder = cipherSuitesPreferenceOrderNoAES
 	}
-	configCipherSuites := config.cipherSuites()
+	configCipherSuites := config.cipherSuites(hasAESGCMHardwareSupport)
 	hello.cipherSuites = make([]uint16, 0, len(configCipherSuites))
 
 	for _, suiteId := range preferenceOrder {
@@ -271,7 +271,7 @@ func (c *Conn) makeClientHelloForApplyPreset() (*clientHelloMsg, *keySharePrivat
 			hello.cipherSuites = nil
 		}
 		if fips140tls.Required() {
-			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13FIPS...)
+			hello.cipherSuites = append(hello.cipherSuites, allowedCipherSuitesTLS13FIPS...)
 		} else if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
 		} else {

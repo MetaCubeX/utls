@@ -7,8 +7,9 @@ package tls
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"strings"
+
+	"golang.org/x/exp/slices"
 
 	"golang.org/x/crypto/cryptobyte"
 )
@@ -1045,6 +1046,7 @@ type encryptedExtensionsMsg struct {
 	quicTransportParameters []byte
 	earlyData               bool
 	echRetryConfigs         []byte
+	serverNameAck           bool
 
 	utls utlsEncryptedExtensionsMsgExtraFields // [uTLS]
 }
@@ -1081,6 +1083,10 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddBytes(m.echRetryConfigs)
 				})
+			}
+			if m.serverNameAck {
+				b.AddUint16(extensionServerName)
+				b.AddUint16(0) // empty extension_data
 			}
 		})
 	})
@@ -1137,6 +1143,11 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 			if !extData.CopyBytes(m.echRetryConfigs) {
 				return false
 			}
+		case extensionServerName:
+			if len(extData) != 0 {
+				return false
+			}
+			m.serverNameAck = true
 		default:
 			// [UTLS SECTION START]
 			if !m.utlsUnmarshal(extension, extData) {

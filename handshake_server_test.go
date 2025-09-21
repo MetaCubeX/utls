@@ -861,6 +861,7 @@ func TestHandshakeServerCHACHA20SHA256(t *testing.T) {
 }
 
 func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
+	skipECDSATest(t)
 	config := testConfig.Clone()
 	config.Certificates = make([]Certificate, 1)
 	config.Certificates[0].Certificate = [][]byte{testECDSACertificate}

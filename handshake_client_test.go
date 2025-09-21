@@ -757,6 +757,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 }
 
 func TestHandshakeClientCertECDSA(t *testing.T) {
+	skipECDSATest(t)
 	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientECDSACertificatePEM), []byte(clientECDSAKeyPEM))
 	config.Certificates = []Certificate{cert}

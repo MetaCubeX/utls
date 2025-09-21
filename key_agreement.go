@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"golang.org/x/exp/slices"
 )
 
 // A keyAgreement implements the client and server side of a TLS 1.0–1.2 key
@@ -291,6 +293,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	sig := skx.key[4+publicLen:]
 	if len(sig) < 2 {
 		return errServerKeyExchange
+	}
+
+	if !slices.Contains(clientHello.supportedCurves, curveID) {
+		return errors.New("tls: server selected unoffered curve")
 	}
 
 	if _, ok := curveForCurveID(curveID); !ok {

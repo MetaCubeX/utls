@@ -542,6 +542,7 @@ func (hs *serverHandshakeState) checkForResumption() error {
 	c.extMasterSecret = sessionState.extMasterSecret
 	hs.sessionState = sessionState
 	hs.suite = suite
+	c.curveID = sessionState.curveID
 	c.didResume = true
 	return nil
 }

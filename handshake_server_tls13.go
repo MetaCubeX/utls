@@ -17,9 +17,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/metacubex/utls/hkdf"
 	"github.com/metacubex/utls/internal/byteorder"
 	"github.com/metacubex/utls/internal/fips140tls"
-	"github.com/metacubex/utls/internal/hkdf"
 	"github.com/metacubex/utls/internal/hpke"
 	"github.com/metacubex/utls/internal/mlkem"
 	"github.com/metacubex/utls/internal/tls13"
@@ -573,12 +573,13 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) 
 		if err := transcriptMsg(helloRetryRequest, confTranscript); err != nil {
 			return nil, err
 		}
-		acceptConfirmation := tls13.ExpandLabel(hs.suite.hash.New,
-			hkdf.Extract(hs.suite.hash.New, hs.clientHello.random, nil),
-			"hrr ech accept confirmation",
-			confTranscript.Sum(nil),
-			8,
-		)
+		h := hs.suite.hash.New
+		prf, err := hkdf.Extract(h, hs.clientHello.random, nil)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return nil, err
+		}
+		acceptConfirmation := tls13.ExpandLabel(h, prf, "hrr ech accept confirmation", confTranscript.Sum(nil), 8)
 		helloRetryRequest.encryptedClientHello = acceptConfirmation
 	}
 
@@ -736,12 +737,13 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 			return err
 		}
 		// compute the acceptance message
-		acceptConfirmation := tls13.ExpandLabel(hs.suite.hash.New,
-			hkdf.Extract(hs.suite.hash.New, hs.clientHello.random, nil),
-			"ech accept confirmation",
-			echTranscript.Sum(nil),
-			8,
-		)
+		h := hs.suite.hash.New
+		prk, err := hkdf.Extract(h, hs.clientHello.random, nil)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		acceptConfirmation := tls13.ExpandLabel(h, prk, "ech accept confirmation", echTranscript.Sum(nil), 8)
 		copy(hs.hello.random[32-8:], acceptConfirmation)
 	}
 

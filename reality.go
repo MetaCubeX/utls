@@ -25,7 +25,6 @@ import (
 	"github.com/metacubex/utls/internal/ratelimit"
 	"github.com/metacubex/utls/mlkem"
 
-	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
 )
@@ -383,13 +382,8 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 				if _, err = hkdf.New(sha256.New, hs.AuthKey, hs.clientHello.random[:20], []byte("REALITY")).Read(hs.AuthKey); err != nil {
 					break
 				}
-				var aead cipher.AEAD
-				if isAESGCMPreferred(hs.clientHello.cipherSuites) {
-					block, _ := aes.NewCipher(hs.AuthKey)
-					aead, _ = cipher.NewGCM(block)
-				} else {
-					aead, _ = chacha20poly1305.New(hs.AuthKey)
-				}
+				block, _ := aes.NewCipher(hs.AuthKey)
+				aead, _ := cipher.NewGCM(block)
 				if config.Log != nil {
 					config.Log("REALITY remoteAddr: %v hs.c.AuthKey[:16]: %v AEAD: %T", remoteAddr, hs.AuthKey[:16], aead)
 				}

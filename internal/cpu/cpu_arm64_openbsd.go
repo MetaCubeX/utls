@@ -6,6 +6,8 @@
 
 package cpu
 
+import _ "unsafe" // for linkname
+
 const (
 	// From OpenBSD's sys/sysctl.h.
 	_CTL_MACHDEP = 7

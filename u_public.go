@@ -628,8 +628,17 @@ func (fh *finishedHash) getPublicObj() FinishedHash {
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
 type KeyShare struct {
-	Group CurveID `json:"group"`
-	Data  []byte  `json:"key_exchange,omitempty"` // optional
+	Group                    CurveID `json:"group"`
+	Data                     []byte  `json:"key_exchange,omitempty"` // optional
+	hybridClassicalReuseWith CurveID
+}
+
+// ReuseHybridAndClassicalKeyShares marks a hybrid/classical keyshare pair so
+// ApplyPreset reuses the same classical key material for both entries.
+func ReuseHybridAndClassicalKeyShares(hybrid, classical KeyShare) []KeyShare {
+	hybrid.hybridClassicalReuseWith = classical.Group
+	classical.hybridClassicalReuseWith = hybrid.Group
+	return []KeyShare{hybrid, classical}
 }
 
 func (ks KeyShare) ToPrivate() keyShare {

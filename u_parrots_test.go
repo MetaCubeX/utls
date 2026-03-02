@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const x25519PublicKeySize = 32
+
 type incrementingSource struct {
 	next byte
 }

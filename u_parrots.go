@@ -6,6 +6,7 @@ package tls
 
 import (
 	"crypto/ecdh"
+	"crypto/mlkem"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -19,7 +20,6 @@ import (
 	"strconv"
 
 	"github.com/metacubex/utls/dicttls"
-	"github.com/metacubex/utls/internal/mlkem"
 )
 
 var ErrUnknownClientHelloID = errors.New("tls: unknown ClientHelloID")
@@ -3272,7 +3272,7 @@ func generateRandomizedSpec(
 		return p, fmt.Errorf("using non-randomized ClientHelloID %v to generate randomized spec", id.Client)
 	}
 
-	p.CipherSuites = defaultCipherSuites()
+	p.CipherSuites = defaultCipherSuites(true)
 	shuffledSuites, err := shuffledCiphers(r)
 	if err != nil {
 		return p, err

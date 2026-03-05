@@ -24,11 +24,6 @@ import (
 
 var ErrUnknownClientHelloID = errors.New("tls: unknown ClientHelloID")
 
-type hybridClassicalReusePair struct {
-	hybrid    CurveID
-	classical CurveID
-}
-
 func classicalCurveForHybrid(curveID CurveID) (CurveID, bool) {
 	switch curveID {
 	case X25519MLKEM768, X25519Kyber768Draft00:
@@ -3012,7 +3007,7 @@ func (uconn *UConn) ApplyPreset(p *ClientHelloSpec) error {
 			}
 		case *KeyShareExtension:
 			preferredCurveIsSet := false
-			reusedClassicalKeys := make(map[hybridClassicalReusePair]*ecdh.PrivateKey)
+			reusableClassicalKeys := make(map[CurveID][]*ecdh.PrivateKey)
 			for i := range ext.KeyShares {
 				curveID := ext.KeyShares[i].Group
 				if isGREASEUint16(uint16(curveID)) { // just in case the user set a GREASE value instead of unGREASEd
@@ -3023,13 +3018,16 @@ func (uconn *UConn) ApplyPreset(p *ClientHelloSpec) error {
 					continue
 				}
 
-				reuseWith := ext.KeyShares[i].hybridClassicalReuseWith
+				isHybridReuse := len(ext.KeyShares[i].Data) == 1 && ext.KeyShares[i].Data[0] == keyShareHybridReuseMarker
+				isClassicalReuse := len(ext.KeyShares[i].Data) == 1 && ext.KeyShares[i].Data[0] == keyShareClassicalReuseMarker
 				if curveID == X25519MLKEM768 || curveID == X25519Kyber768Draft00 {
-					if reuseWith != 0 {
-						expectedClassical, ok := classicalCurveForHybrid(curveID)
-						if !ok || reuseWith != expectedClassical {
-							return fmt.Errorf("hybrid keyshare reuse mismatch: hybrid %v must pair with classical %v, got %v",
-								curveID, expectedClassical, reuseWith)
+					if isClassicalReuse {
+						return fmt.Errorf("hybrid keyshare reuse mismatch: classical marker is invalid for hybrid group %v", curveID)
+					}
+					if isHybridReuse {
+						_, ok := classicalCurveForHybrid(curveID)
+						if !ok {
+							return fmt.Errorf("hybrid keyshare reuse mismatch: hybrid group %v is not supported for reuse", curveID)
 						}
 					}
 
@@ -3053,31 +3051,26 @@ func (uconn *UConn) ApplyPreset(p *ClientHelloSpec) error {
 					}
 					uconn.HandshakeState.State13.KeyShareKeys.Mlkem = mlkemKey
 					uconn.HandshakeState.State13.KeyShareKeys.MlkemEcdhe = ecdheKey
-					if reuseWith != 0 {
-						reusedClassicalKeys[hybridClassicalReusePair{
-							hybrid:    curveID,
-							classical: reuseWith,
-						}] = ecdheKey
+					if isHybridReuse {
+						expectedClassical, _ := classicalCurveForHybrid(curveID)
+						reusableClassicalKeys[expectedClassical] = append(
+							reusableClassicalKeys[expectedClassical],
+							ecdheKey,
+						)
 					}
 				} else {
-					if reuseWith != 0 {
-						expectedClassical, ok := classicalCurveForHybrid(reuseWith)
-						if !ok {
-							return fmt.Errorf("classical keyshare reuse mismatch: hybrid group %v is not supported for reuse", reuseWith)
-						}
-						if curveID != expectedClassical {
-							return fmt.Errorf("classical keyshare reuse mismatch: hybrid %v must pair with classical %v, got %v",
-								reuseWith, expectedClassical, curveID)
+					if isHybridReuse {
+						return fmt.Errorf("classical keyshare reuse mismatch: hybrid marker is invalid for classical group %v", curveID)
+					}
+					if isClassicalReuse {
+						keysForCurve := reusableClassicalKeys[curveID]
+						if len(keysForCurve) == 0 {
+							return fmt.Errorf("classical keyshare %v is configured to reuse a hybrid keyshare, but no matching hybrid keyshare was generated first",
+								curveID)
 						}
 
-						reusedKey, ok := reusedClassicalKeys[hybridClassicalReusePair{
-							hybrid:    reuseWith,
-							classical: curveID,
-						}]
-						if !ok {
-							return fmt.Errorf("classical keyshare %v is configured to reuse hybrid %v, but no matching hybrid keyshare was generated first",
-								curveID, reuseWith)
-						}
+						reusedKey := keysForCurve[0]
+						reusableClassicalKeys[curveID] = keysForCurve[1:]
 
 						ext.KeyShares[i].Data = reusedKey.PublicKey().Bytes()
 						if !preferredCurveIsSet {

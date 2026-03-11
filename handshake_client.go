@@ -214,6 +214,9 @@ type echClientContext struct {
 	config          *echConfig
 	hpkeContext     *hpke.Sender
 	encapsulatedKey []byte
+	//[uTLS] SECTION START
+	encodedInner []byte
+	//[uTLS] SECTION END
 	innerHello      *clientHelloMsg
 	innerTranscript hash.Hash
 	kdfID           uint16

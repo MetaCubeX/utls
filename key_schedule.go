@@ -109,12 +109,12 @@ func keyExchangeForCurveID(id CurveID) (keyExchange, error) {
 		return &hybridKeyExchange{id, ecdhKeyExchange{CurveP384, ecdh.P384()},
 			97, mlkem.EncapsulationKeySize1024, mlkem.CiphertextSize1024,
 			newMLKEMPrivateKey1024, newMLKEMPublicKey1024}, nil
-	// [uTLS] SECTION BEGIN
+	//[uTLS] SECTION START
 	case X25519Kyber768Draft00:
 		return &hybridKeyExchange{id, ecdhKeyExchange{X25519, ecdh.X25519()},
 			32, mlkem.EncapsulationKeySize768, mlkem.CiphertextSize768,
 			newMLKEMPrivateKey768, newMLKEMPublicKey768}, nil
-	// [uTLS] SECTION END
+	//[uTLS] SECTION END
 	default:
 		return nil, errors.New("tls: unsupported key exchange")
 	}
@@ -150,11 +150,29 @@ func (ke *ecdhKeyExchange) serverSharedSecret(rand io.Reader, clientKeyShare []b
 }
 
 func (ke *ecdhKeyExchange) clientSharedSecret(priv *keySharePrivateKeys, serverKeyShare []byte) ([]byte, error) {
+	//[uTLS] SECTION START
+	return ke.clientSharedSecretChooseEcdhe(priv, serverKeyShare, false)
+}
+
+func (ke *ecdhKeyExchange) clientSharedSecretChooseEcdhe(priv *keySharePrivateKeys, serverKeyShare []byte, useSeperateEcdhe bool) ([]byte, error) {
+	//[uTLS] SECTION END
 	peerKey, err := ke.curve.NewPublicKey(serverKeyShare)
 	if err != nil {
 		return nil, err
 	}
-	sharedKey, err := priv.ecdhe.ECDH(peerKey)
+	//[uTLS] SECTION START
+	ecdhe := priv.ecdhe
+	if useSeperateEcdhe {
+		if priv.mlkemEcdhe == nil {
+			return nil, errors.New("tls: missing separate hybrid ECDHE private key")
+		}
+		ecdhe = priv.mlkemEcdhe
+	}
+	if ecdhe == nil {
+		return nil, errors.New("tls: missing ECDHE private key")
+	}
+	sharedKey, err := ecdhe.ECDH(peerKey)
+	//[uTLS] SECTION END
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +237,11 @@ func (ke *hybridKeyExchange) serverSharedSecret(rand io.Reader, clientKeyShare [
 		return nil, keyShare{}, err
 	}
 	mlkemSharedSecret, mlkemKeyShare := mlkemPeerKey.Encapsulate()
+	//[uTLS] SECTION START
+	if ke.id == X25519Kyber768Draft00 {
+		mlkemSharedSecret = kyberSharedSecret(mlkemKeyShare, mlkemSharedSecret)
+	}
+	//[uTLS] SECTION END
 	var sharedKey []byte
 	if ke.id == X25519MLKEM768 {
 		sharedKey = append(mlkemSharedSecret, ecdhSharedSecret...)
@@ -243,16 +266,19 @@ func (ke *hybridKeyExchange) clientSharedSecret(priv *keySharePrivateKeys, serve
 		ecdhShareData = serverKeyShare[:ke.ecdhElementSize]
 		mlkemShareData = serverKeyShare[ke.ecdhElementSize:]
 	}
-	ecdhSharedSecret, err := ke.ecdh.clientSharedSecret(priv, ecdhShareData)
+	//[uTLS] SECTION START
+	useSeperateEcdhe := ke.id == X25519Kyber768Draft00 || priv.mlkemEcdhe != nil
+	ecdhSharedSecret, err := ke.ecdh.clientSharedSecretChooseEcdhe(priv, ecdhShareData, useSeperateEcdhe)
+	//[uTLS] SECTION END
 	if err != nil {
 		return nil, err
 	}
 	mlkemSharedSecret, err := priv.mlkem.Decapsulate(mlkemShareData)
-	// [uTLS] SECTION BEGIN
+	//[uTLS] SECTION START
 	if ke.id == X25519Kyber768Draft00 {
 		mlkemSharedSecret = kyberSharedSecret(mlkemShareData, mlkemSharedSecret)
 	}
-	// [uTLS] SECTION END
+	//[uTLS] SECTION END
 	if err != nil {
 		return nil, err
 	}

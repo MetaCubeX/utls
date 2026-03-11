@@ -578,9 +578,12 @@ func (c *UConn) clientHandshake(ctx context.Context) (err error) {
 func (c *UConn) echTranscriptMsg(outer *clientHelloMsg, echCtx *echClientContext) (err error) {
 	// Recreate the inner ClientHello from its compressed form using server's decodeInnerClientHello function.
 	// See https://github.com/refraction-networking/utls/blob/e430876b1d82fdf582efc57f3992d448e7ab3d8a/ech.go#L276-L283
-	encodedInner, err := encodeInnerClientHelloReorderOuterExts(echCtx.innerHello, int(echCtx.config.MaxNameLength), c.extensionsList())
-	if err != nil {
-		return err
+	encodedInner := echCtx.encodedInner
+	if encodedInner == nil {
+		encodedInner, err = encodeInnerClientHelloReorderOuterExts(echCtx.innerHello, int(echCtx.config.MaxNameLength), c.extensionsList())
+		if err != nil {
+			return err
+		}
 	}
 
 	decodedInner, err := decodeInnerClientHello(outer, encodedInner)

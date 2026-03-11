@@ -432,6 +432,9 @@ func computeAndUpdateOuterECHExtension(outer, inner *clientHelloMsg, ech *echCli
 	if err != nil {
 		return err
 	}
+	//[uTLS] SECTION START
+	ech.encodedInner = bytes.Clone(encodedInner)
+	//[uTLS] SECTION END
 	// NOTE: the tag lengths for all of the supported AEADs are the same (16
 	// bytes), so we have hardcoded it here. If we add support for another AEAD
 	// with a different tag length, we will need to change this.

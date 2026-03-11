@@ -503,6 +503,7 @@ func (uconn *UConn) computeAndUpdateOuterECHExtension(inner *clientHelloMsg, ech
 	if err != nil {
 		return err
 	}
+	ech.encodedInner = bytes.Clone(encodedInner)
 
 	encryptedLen := len(encodedInner) + 16
 	outerECHExt, err := generateOuterECHExt(ech.config.ConfigID, ech.kdfID, ech.aeadID, encapKey, make([]byte, encryptedLen))

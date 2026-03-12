@@ -7,9 +7,9 @@
 package tls13
 
 import (
-	"crypto/hkdf"
 	fips140 "hash"
 
+	"github.com/metacubex/utls/hkdf"
 	"github.com/metacubex/utls/internal/byteorder"
 )
 

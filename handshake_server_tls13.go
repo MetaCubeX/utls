@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/hkdf"
 	"crypto/hmac"
 	"crypto/hpke"
 	"crypto/rsa"
@@ -21,6 +20,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/metacubex/utls/hkdf"
 	"github.com/metacubex/utls/internal/byteorder"
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/tls13"

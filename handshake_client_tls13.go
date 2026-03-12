@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/hkdf"
 	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/subtle"
@@ -18,6 +17,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/metacubex/utls/hkdf"
 	"github.com/metacubex/utls/internal/tls13"
 )
 

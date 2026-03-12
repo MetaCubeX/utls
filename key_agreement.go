@@ -13,8 +13,9 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"io"
+
+	"golang.org/x/exp/slices"
 )
 
 // A keyAgreement implements the client and server side of a TLS 1.0–1.2 key
@@ -204,7 +205,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 			tlssha1.Value() // ensure godebug is initialized
 			tlssha1.IncNonDefault()
 		}
-		signed := slices.Concat(clientHello.random, hello.random, serverECDHEParams)
+		signed := slicesConcat(clientHello.random, hello.random, serverECDHEParams)
 		if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 			return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
 		}
@@ -347,7 +348,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 			return errServerKeyExchange
 		}
-		signed := slices.Concat(clientHello.random, serverHello.random, serverECDHEParams)
+		signed := slicesConcat(clientHello.random, serverHello.random, serverECDHEParams)
 		if err := verifyHandshakeSignature(sigType, cert.PublicKey, sigHash, signed, sig); err != nil {
 			return errors.New("tls: invalid signature by the server certificate: " + err.Error())
 		}

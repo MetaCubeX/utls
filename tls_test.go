@@ -944,6 +944,8 @@ func TestCloneNonFuncFields(t *testing.T) {
 			continue // these are unexported fields that are handled separately
 		case "ApplicationSettings": // [UTLS] ALPS (Application Settings)
 			f.Set(reflect.ValueOf(map[string][]byte{"a": {1}}))
+		case "SessionIDGenerator": // [SHADOWTLS]
+			continue
 		default:
 			t.Errorf("all fields must be accounted for, but saw unknown field %q", fn)
 		}

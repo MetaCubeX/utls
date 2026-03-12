@@ -977,6 +977,8 @@ type Config struct {
 	// autoSessionTicketKeys is like sessionTicketKeys but is owned by the
 	// auto-rotation logic. See Config.ticketKeys.
 	autoSessionTicketKeys []ticketKey
+
+	SessionIDGenerator func(clientHello []byte, sessionID []byte) error
 }
 
 // EncryptedClientHelloKey holds a private key that is associated
@@ -1108,6 +1110,7 @@ func (c *Config) Clone() *Config {
 		autoSessionTicketKeys:               c.autoSessionTicketKeys,
 
 		PreferSkipResumptionOnNilExtension: c.PreferSkipResumptionOnNilExtension, // [UTLS]
+		SessionIDGenerator:                 c.SessionIDGenerator,                 // [SHADOWTLS]
 	}
 }
 

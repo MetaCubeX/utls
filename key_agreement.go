@@ -13,8 +13,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
-	"slices"
 )
 
 // A keyAgreement implements the client and server side of a TLS 1.0–1.2 key

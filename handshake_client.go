@@ -15,10 +15,10 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"hash"
 	"io"
 	"net"
-	"slices"
 	"strings"
 	"time"
 

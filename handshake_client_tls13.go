@@ -13,8 +13,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"hash"
-	"slices"
 	"time"
 
 	"github.com/metacubex/utls/hkdf"

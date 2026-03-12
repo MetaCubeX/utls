@@ -10,8 +10,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
-	"slices"
 
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"

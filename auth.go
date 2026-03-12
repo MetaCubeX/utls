@@ -13,9 +13,9 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"hash"
 	"io"
-	"slices"
 )
 
 // verifyHandshakeSignature verifies a signature against unhashed handshake contents.

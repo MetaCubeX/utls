@@ -392,7 +392,7 @@ func (c *UConn) handshakeContext(ctx context.Context) (ret error) {
 			}
 		} else {
 			c.out.Lock()
-			a, ok := errors.AsType[alert](c.out.err)
+			a, ok := errorsAsType[alert](c.out.err)
 			if !ok {
 				a = alertInternalError
 			}

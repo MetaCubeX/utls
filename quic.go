@@ -382,10 +382,10 @@ func quicError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if _, ok := errors.AsType[AlertError](err); ok {
+	if _, ok := errorsAsType[AlertError](err); ok {
 		return err
 	}
-	a, ok := errors.AsType[alert](err)
+	a, ok := errorsAsType[alert](err)
 	if !ok {
 		a = alertInternalError
 	}

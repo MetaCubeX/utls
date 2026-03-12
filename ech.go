@@ -6,11 +6,11 @@ package tls
 
 import (
 	"bytes"
-	"crypto/hpke"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/metacubex/utls/hpke"
 	"golang.org/x/crypto/cryptobyte"
 )
 

@@ -5,15 +5,14 @@
 package tls
 
 import (
-	"crypto"
 	"crypto/ecdh"
 	"crypto/hmac"
-	"crypto/mlkem"
 	"errors"
 	"hash"
 	"io"
 
 	"github.com/metacubex/utls/internal/tls13"
+	"github.com/metacubex/utls/mlkem"
 )
 
 // This file contains the functions necessary to compute the TLS 1.3 key
@@ -53,7 +52,7 @@ func (c *cipherSuiteTLS13) exportKeyingMaterial(s *tls13.MasterSecret, transcrip
 
 type keySharePrivateKeys struct {
 	ecdhe *ecdh.PrivateKey
-	mlkem crypto.Decapsulator
+	mlkem mlkem.Decapsulator
 
 	mlkemEcdhe *ecdh.PrivateKey // [uTLS] seperate ecdhe key for pq keyshare in line with Chrome, instead of reusing ecdhe key like stdlib
 }
@@ -76,16 +75,16 @@ type keyExchange interface {
 }
 
 func keyExchangeForCurveID(id CurveID) (keyExchange, error) {
-	newMLKEMPrivateKey768 := func(b []byte) (crypto.Decapsulator, error) {
+	newMLKEMPrivateKey768 := func(b []byte) (mlkem.Decapsulator, error) {
 		return mlkem.NewDecapsulationKey768(b)
 	}
-	newMLKEMPrivateKey1024 := func(b []byte) (crypto.Decapsulator, error) {
+	newMLKEMPrivateKey1024 := func(b []byte) (mlkem.Decapsulator, error) {
 		return mlkem.NewDecapsulationKey1024(b)
 	}
-	newMLKEMPublicKey768 := func(b []byte) (crypto.Encapsulator, error) {
+	newMLKEMPublicKey768 := func(b []byte) (mlkem.Encapsulator, error) {
 		return mlkem.NewEncapsulationKey768(b)
 	}
-	newMLKEMPublicKey1024 := func(b []byte) (crypto.Encapsulator, error) {
+	newMLKEMPublicKey1024 := func(b []byte) (mlkem.Encapsulator, error) {
 		return mlkem.NewEncapsulationKey1024(b)
 	}
 	switch id {
@@ -187,8 +186,8 @@ type hybridKeyExchange struct {
 	mlkemPublicKeySize  int
 	mlkemCiphertextSize int
 
-	newMLKEMPrivateKey func([]byte) (crypto.Decapsulator, error)
-	newMLKEMPublicKey  func([]byte) (crypto.Encapsulator, error)
+	newMLKEMPrivateKey func([]byte) (mlkem.Decapsulator, error)
+	newMLKEMPublicKey  func([]byte) (mlkem.Encapsulator, error)
 }
 
 func (ke *hybridKeyExchange) keyShares(rand io.Reader) (*keySharePrivateKeys, []keyShare, error) {

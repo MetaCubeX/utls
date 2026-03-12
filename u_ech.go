@@ -1,7 +1,6 @@
 package tls
 
 import (
-	"crypto/hpke"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/metacubex/utls/dicttls"
+	"github.com/metacubex/utls/hpke"
 	"golang.org/x/crypto/cryptobyte"
 )
 

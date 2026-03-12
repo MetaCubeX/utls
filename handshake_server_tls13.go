@@ -8,9 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/hkdf"
 	"crypto/hmac"
-	"crypto/hpke"
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
@@ -21,6 +19,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/metacubex/utls/hkdf"
+	"github.com/metacubex/utls/hpke"
 	"github.com/metacubex/utls/internal/byteorder"
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/tls13"
@@ -437,13 +437,18 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 	return nil
 }
 
+type hashCloner interface {
+	hash.Hash
+	Clone() (hashCloner, error)
+}
+
 // cloneHash uses [hash.Cloner] to clone in. If [hash.Cloner]
 // is not implemented or not supported, then it falls back to the
 // [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler]
 // interfaces implemented by standard library hashes to clone the state of in
 // to a new instance of h. It returns nil if the operation fails.
 func cloneHash(in hash.Hash, h crypto.Hash) hash.Hash {
-	if cloner, ok := in.(hash.Cloner); ok {
+	if cloner, ok := in.(hashCloner); ok {
 		if out, err := cloner.Clone(); err == nil {
 			return out
 		}
@@ -868,7 +873,7 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := crypto.SignMessage(hs.cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
+	sig, err := cryptoSignMessage(hs.cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
 	if err != nil {
 		public := hs.cert.PrivateKey.(crypto.Signer).Public()
 		if rsaKey, ok := public.(*rsa.PublicKey); ok && sigType == signatureRSAPSS &&

@@ -212,7 +212,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		if sigType == signatureRSAPSS {
 			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 		}
-		sig, err = crypto.SignMessage(priv, config.rand(), signed, signOpts)
+		sig, err = cryptoSignMessage(priv, config.rand(), signed, signOpts)
 		if err != nil {
 			return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
 		}

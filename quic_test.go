@@ -379,7 +379,7 @@ func TestQUICHandshakeError(t *testing.T) {
 	if !errors.Is(err, AlertError(alertBadCertificate)) {
 		t.Errorf("connection handshake terminated with error %q, want alertBadCertificate", err)
 	}
-	if _, ok := errors.AsType[*CertificateVerificationError](err); !ok {
+	if _, ok := errorsAsType[*CertificateVerificationError](err); !ok {
 		t.Errorf("connection handshake terminated with error %q, want CertificateVerificationError", err)
 	}
 
@@ -415,7 +415,7 @@ func TestQUICECHKeyError(t *testing.T) {
 	if srv.gotError == nil {
 		t.Fatalf("after GetEncryptedClientHelloKeys error, server did not see QUICErrorEvent")
 	}
-	if _, ok := errors.AsType[AlertError](srv.gotError); !ok {
+	if _, ok := errorsAsType[AlertError](srv.gotError); !ok {
 		t.Errorf("connection handshake terminated with error %T, want AlertError", srv.gotError)
 	}
 	if !errors.Is(srv.gotError, getECHKeysError) {
@@ -492,10 +492,16 @@ func TestQUICContextCancelation(t *testing.T) {
 	// Verify that canceling the connection context concurrently does not cause any races.
 	// See https://go.dev/issue/77274.
 	var wg sync.WaitGroup
-	wg.Go(func() {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		_ = runTestQUICConnection(ctx, cli, srv, nil)
-	})
-	wg.Go(cancel)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cancel()
+	}()
 	wg.Wait()
 }
 

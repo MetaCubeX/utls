@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/hkdf"
 	"crypto/hmac"
 	"crypto/rsa"
 	"crypto/subtle"
@@ -17,7 +16,8 @@ import (
 	"golang.org/x/exp/slices"
 	"hash"
 	"time"
-	
+
+	"github.com/metacubex/utls/hkdf"
 	"github.com/metacubex/utls/internal/tls13"
 )
 
@@ -919,7 +919,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := crypto.SignMessage(cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
+	sig, err := cryptoSignMessage(cert.PrivateKey.(crypto.Signer), c.config.rand(), signed, signOpts)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return errors.New("tls: failed to sign handshake: " + err.Error())

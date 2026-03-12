@@ -10,6 +10,8 @@ import (
 	"crypto/x509"
 	"hash"
 	"time"
+
+	"github.com/metacubex/utls/mlkem"
 )
 
 // ClientHandshakeState includes both TLS 1.3-only and TLS 1.2-only states,
@@ -910,7 +912,7 @@ func (kpk *kemPrivateKey) ToPublic() *KemPrivateKey {
 type KeySharePrivateKeys struct {
 	// CurveID    CurveID
 	Ecdhe      *ecdh.PrivateKey
-	Mlkem      crypto.Decapsulator
+	Mlkem      mlkem.Decapsulator
 	MlkemEcdhe *ecdh.PrivateKey
 }
 

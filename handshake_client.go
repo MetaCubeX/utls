@@ -10,7 +10,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/hpke"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -23,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/metacubex/utls/hpke"
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/tls13"
 )
@@ -867,7 +867,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			if sigType == signatureRSAPSS {
 				signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 			}
-			certVerify.signature, err = crypto.SignMessage(key, c.config.rand(), hs.finishedHash.buffer, signOpts)
+			certVerify.signature, err = cryptoSignMessage(key, c.config.rand(), hs.finishedHash.buffer, signOpts)
 			if err != nil {
 				c.sendAlert(alertInternalError)
 				return err

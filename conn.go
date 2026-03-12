@@ -1553,7 +1553,7 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 		c.quic.cancel = cancel
 	} else if ctx.Done() != nil {
 		// Close the connection if ctx is canceled before the function returns.
-		stop := context.AfterFunc(ctx, func() {
+		stop := contextAfterFunc(ctx, func() {
 			_ = c.conn.Close()
 		})
 		defer func() {

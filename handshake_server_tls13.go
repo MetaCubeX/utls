@@ -438,13 +438,18 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 	return nil
 }
 
+type hashCloner interface {
+	hash.Hash
+	Clone() (hashCloner, error)
+}
+
 // cloneHash uses [hash.Cloner] to clone in. If [hash.Cloner]
 // is not implemented or not supported, then it falls back to the
 // [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler]
 // interfaces implemented by standard library hashes to clone the state of in
 // to a new instance of h. It returns nil if the operation fails.
 func cloneHash(in hash.Hash, h crypto.Hash) hash.Hash {
-	if cloner, ok := in.(hash.Cloner); ok {
+	if cloner, ok := in.(hashCloner); ok {
 		if out, err := cloner.Clone(); err == nil {
 			return out
 		}

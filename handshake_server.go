@@ -18,7 +18,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/refraction-networking/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/fips140tls"
 )
 
 // serverHandshakeState contains details of a server handshake in progress.

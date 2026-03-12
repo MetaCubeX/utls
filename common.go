@@ -27,7 +27,7 @@ import (
 	"time"
 	_ "unsafe" // for linkname
 
-	"github.com/refraction-networking/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/fips140tls"
 )
 
 const (

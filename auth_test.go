@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/refraction-networking/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/fips140tls"
 )
 
 func TestSignatureSelection(t *testing.T) {

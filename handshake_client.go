@@ -853,7 +853,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			if sigType == signatureRSAPSS {
 				signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 			}
-			certVerify.signature, err = crypto.SignMessage(key, c.config.rand(), hs.finishedHash.buffer, signOpts)
+			certVerify.signature, err = cryptoSignMessage(key, c.config.rand(), hs.finishedHash.buffer, signOpts)
 			if err != nil {
 				c.sendAlert(alertInternalError)
 				return err

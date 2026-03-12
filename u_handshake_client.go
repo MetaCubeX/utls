@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"compress/zlib"
 	"context"
-	"crypto/hpke"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"
+	"github.com/metacubex/utls/hpke"
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/tls13"
 )

@@ -9,7 +9,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
-	"crypto/hpke"
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
@@ -21,6 +20,7 @@ import (
 	"time"
 
 	"github.com/metacubex/utls/hkdf"
+	"github.com/metacubex/utls/hpke"
 	"github.com/metacubex/utls/internal/byteorder"
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/tls13"

@@ -10,7 +10,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/hpke"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -23,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/metacubex/utls/hpke"
 	"github.com/metacubex/utls/internal/fips140tls"
 	"github.com/metacubex/utls/internal/tls13"
 )

@@ -2,7 +2,8 @@ package tls
 
 import (
 	"crypto/ecdh"
-	"crypto/hpke"
+
+	"github.com/metacubex/utls/hpke"
 )
 
 type HPKERawPublicKey = []byte

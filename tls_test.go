@@ -553,7 +553,7 @@ func TestRealResumption(t *testing.T) {
 		ClientSessionCache: NewLRUClientSessionCache(0),
 	}
 
-	for range 10 {
+	for i := 0; i < 10; i++ {
 		conn, err := Dial("tcp", "yahoo.com:443", config)
 		if err != nil {
 			t.Log("Dial error:", err)

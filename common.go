@@ -1961,7 +1961,11 @@ func anyValidVerifiedChain(verifiedChains [][]*x509.Certificate, opts x509.Verif
 		// CertPool.Contains if/once that is available. See go.dev/issue/77376.
 		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 			opts.Intermediates = x509.NewCertPool()
-			for _, cert := range chain[1:max(1, len(chain)-1)] {
+			end := len(chain) - 1
+			if end < 1 {
+				end = 1
+			}
+			for _, cert := range chain[1:end] {
 				opts.Intermediates.AddCert(cert)
 			}
 			leaf := chain[0]

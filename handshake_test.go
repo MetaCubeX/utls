@@ -391,7 +391,9 @@ Dialing:
 type zeroSource struct{}
 
 func (zeroSource) Read(b []byte) (n int, err error) {
-	clear(b)
+	for i := range b {
+		b[i] = 0
+	}
 	return len(b), nil
 }
 

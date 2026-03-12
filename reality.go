@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/metacubex/utls/internal/mlkem"
 	"github.com/metacubex/utls/internal/ratelimit"
+	"github.com/metacubex/utls/mlkem"
 
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"

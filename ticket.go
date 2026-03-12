@@ -84,14 +84,15 @@ type SessionState struct {
 	// createdAt is the generation time of the secret on the server (which for
 	// TLS 1.0–1.2 might be earlier than the current session) and the time at
 	// which the ticket was received on the client.
-	createdAt        uint64 // seconds since UNIX epoch
-	secret           []byte // master secret for TLS 1.2, or the PSK for TLS 1.3
-	extMasterSecret  bool
-	peerCertificates []*x509.Certificate
-	ocspResponse     []byte
-	scts             [][]byte
-	verifiedChains   [][]*x509.Certificate
-	alpnProtocol     string // only set if EarlyData is true
+	createdAt         uint64 // seconds since UNIX epoch
+	secret            []byte // master secret for TLS 1.2, or the PSK for TLS 1.3
+	extMasterSecret   bool
+	peerCertificates  []*x509.Certificate
+	activeCertHandles []*activeCert
+	ocspResponse      []byte
+	scts              [][]byte
+	verifiedChains    [][]*x509.Certificate
+	alpnProtocol      string // only set if EarlyData is true
 
 	// Client-side TLS 1.3-only fields.
 	useBy  uint64 // seconds since UNIX epoch
@@ -238,7 +239,8 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		if err != nil {
 			return nil, err
 		}
-		ss.peerCertificates = append(ss.peerCertificates, c)
+		ss.activeCertHandles = append(ss.activeCertHandles, c)
+		ss.peerCertificates = append(ss.peerCertificates, c.cert)
 	}
 	if ss.isClient && len(ss.peerCertificates) == 0 {
 		return nil, errors.New("tls: no server certificates in client session")
@@ -268,7 +270,8 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 			if err != nil {
 				return nil, err
 			}
-			chain = append(chain, c)
+			ss.activeCertHandles = append(ss.activeCertHandles, c)
+			chain = append(chain, c.cert)
 		}
 		ss.verifiedChains = append(ss.verifiedChains, chain)
 	}
@@ -297,17 +300,18 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 // from the current connection.
 func (c *Conn) sessionState() *SessionState {
 	return &SessionState{
-		version:          c.vers,
-		cipherSuite:      c.cipherSuite,
-		createdAt:        uint64(c.config.time().Unix()),
-		alpnProtocol:     c.clientProtocol,
-		peerCertificates: c.peerCertificates,
-		ocspResponse:     c.ocspResponse,
-		scts:             c.scts,
-		isClient:         c.isClient,
-		extMasterSecret:  c.extMasterSecret,
-		verifiedChains:   c.verifiedChains,
-		curveID:          c.curveID,
+		version:           c.vers,
+		cipherSuite:       c.cipherSuite,
+		createdAt:         uint64(c.config.time().Unix()),
+		alpnProtocol:      c.clientProtocol,
+		peerCertificates:  c.peerCertificates,
+		activeCertHandles: c.activeCertHandles,
+		ocspResponse:      c.ocspResponse,
+		scts:              c.scts,
+		isClient:          c.isClient,
+		extMasterSecret:   c.extMasterSecret,
+		verifiedChains:    c.verifiedChains,
+		curveID:           c.curveID,
 	}
 }
 

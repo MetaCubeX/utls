@@ -492,10 +492,16 @@ func TestQUICContextCancelation(t *testing.T) {
 	// Verify that canceling the connection context concurrently does not cause any races.
 	// See https://go.dev/issue/77274.
 	var wg sync.WaitGroup
-	wg.Go(func() {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		_ = runTestQUICConnection(ctx, cli, srv, nil)
-	})
-	wg.Go(cancel)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cancel()
+	}()
 	wg.Wait()
 }
 

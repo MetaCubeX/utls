@@ -169,16 +169,40 @@ func newRateLimitedConn(conn net.Conn, limit *RealityLimitFallback) net.Conn {
 	}
 }
 
-var (
-	ed25519Priv ed25519.PrivateKey
-	signedCert  []byte
-)
+func onceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
+	var (
+		once  sync.Once
+		valid bool
+		p     any
+		r1    T1
+		r2    T2
+	)
+	g := func() {
+		defer func() {
+			p = recover()
+			if !valid {
+				panic(p)
+			}
+		}()
+		r1, r2 = f()
+		f = nil
+		valid = true
+	}
+	return func() (T1, T2) {
+		once.Do(g)
+		if !valid {
+			panic(p)
+		}
+		return r1, r2
+	}
+}
 
-func init() {
+var realityServerCert = onceValues(func() (ed25519Priv ed25519.PrivateKey, signedCert []byte) {
 	certificate := x509.Certificate{SerialNumber: &big.Int{}}
 	_, ed25519Priv, _ = ed25519.GenerateKey(rand.Reader)
 	signedCert, _ = x509.CreateCertificate(rand.Reader, &certificate, &certificate, ed25519.PublicKey(ed25519Priv[32:]), ed25519Priv)
-}
+	return
+})
 
 type realityServerHandshakeStateTLS13 struct {
 	serverHandshakeStateTLS13
@@ -245,7 +269,8 @@ func (hs *realityServerHandshakeStateTLS13) handshake() error {
 		}
 	*/
 	{
-		signedCert := append([]byte{}, signedCert...)
+		ed25519Priv, signedCert := realityServerCert()
+		signedCert = append([]byte{}, signedCert...)
 
 		h := hmac.New(sha512.New, hs.AuthKey)
 		h.Write(ed25519Priv[32:])

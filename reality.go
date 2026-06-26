@@ -69,7 +69,7 @@ func (c *realityMirrorConn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
-const realitySize uint16 = 8192
+const realitySize uint16 = 16384
 
 var realityTypes = [7]string{
 	"Server Hello",

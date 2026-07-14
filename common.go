@@ -307,6 +307,10 @@ type ConnectionState struct {
 	// client side.
 	ECHAccepted bool
 
+	// JLS BEGIN: expose ShadowQUIC JLS authentication state.
+	JLS JLSState
+	// JLS END
+
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
 
@@ -903,6 +907,10 @@ type Config struct {
 	// clients, see the EncryptedClientHelloConfigList field.
 	EncryptedClientHelloKeys []EncryptedClientHelloKey
 
+	// JLS BEGIN: ShadowQUIC JLS configuration hook.
+	JLSConfig *JLSConfig
+	// JLS END
+
 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
 	mutex sync.RWMutex
 	// sessionTicketKeys contains zero or more ticket keys. If set, it means
@@ -1020,6 +1028,9 @@ func (c *Config) Clone() *Config {
 		EncryptedClientHelloKeys:            c.EncryptedClientHelloKeys,
 		sessionTicketKeys:                   c.sessionTicketKeys,
 		autoSessionTicketKeys:               c.autoSessionTicketKeys,
+		// JLS BEGIN: preserve ShadowQUIC JLS configuration on clone.
+		JLSConfig: c.JLSConfig,
+		// JLS END
 
 		PreferSkipResumptionOnNilExtension: c.PreferSkipResumptionOnNilExtension, // [UTLS]
 		SessionIDGenerator:                 c.SessionIDGenerator,

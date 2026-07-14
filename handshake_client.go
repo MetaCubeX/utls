@@ -345,6 +345,12 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	}
 	// [SHADOWTLS SECTION ENDS]
 
+	// JLS BEGIN: replace ClientHello random with ShadowQUIC JLS authentication bytes.
+	if err := c.applyJLSClientHello(hello, session, binderKey); err != nil {
+		return err
+	}
+	// JLS END
+
 	if _, err := c.writeHandshakeRecord(hello, nil); err != nil {
 		return err
 	}
@@ -1200,6 +1206,9 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 			}
 		}
+	} else if c.jlsAuthenticated() {
+		// JLS BEGIN: authenticated camouflage certs skip normal chain verification.
+		// JLS END
 	} else if !c.config.InsecureSkipVerify {
 		// [UTLS SECTION START]
 		opts := x509.VerifyOptions{
@@ -1246,6 +1255,12 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 	c.activeCertHandles = activeHandles
 	c.peerCertificates = certs
+
+	// JLS BEGIN: external verifiers are skipped after successful JLS authentication.
+	if c.jlsAuthenticated() {
+		return nil
+	}
+	// JLS END
 
 	if c.config.VerifyPeerCertificate != nil && !echRejected {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {

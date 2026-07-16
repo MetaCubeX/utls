@@ -102,6 +102,51 @@ func TestRealityMldsa65Helpers(t *testing.T) {
 	}
 }
 
+func TestRealityCloseWritePreservesReadSide(t *testing.T) {
+	conn := newRealityCloseWriteRecorder()
+	defer conn.Conn.Close()
+	if err := realityCloseWrite(conn); err != nil {
+		t.Fatal(err)
+	}
+	if !conn.closeWriteCalled {
+		t.Fatal("CloseWrite was not called")
+	}
+	if conn.closeCalled {
+		t.Fatal("Close was called for a half-close capable connection")
+	}
+
+	plainClient, plainServer := net.Pipe()
+	if err := realityCloseWrite(plainServer); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := plainClient.Write([]byte("closed")); err == nil {
+		t.Fatal("fallback connection without CloseWrite remained open")
+	}
+	_ = plainClient.Close()
+}
+
+type realityCloseWriteRecorder struct {
+	net.Conn
+	closeWriteCalled bool
+	closeCalled      bool
+}
+
+func newRealityCloseWriteRecorder() *realityCloseWriteRecorder {
+	left, right := net.Pipe()
+	_ = right.Close()
+	return &realityCloseWriteRecorder{Conn: left}
+}
+
+func (c *realityCloseWriteRecorder) CloseWrite() error {
+	c.closeWriteCalled = true
+	return nil
+}
+
+func (c *realityCloseWriteRecorder) Close() error {
+	c.closeCalled = true
+	return c.Conn.Close()
+}
+
 type realityAddrConn struct {
 	net.Conn
 	localAddr  net.Addr

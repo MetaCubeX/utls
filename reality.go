@@ -39,6 +39,17 @@ type realityMirrorConn struct {
 	Target net.Conn
 }
 
+type realityCloseWriter interface {
+	CloseWrite() error
+}
+
+func realityCloseWrite(conn net.Conn) error {
+	if closeWriter, ok := conn.(realityCloseWriter); ok {
+		return closeWriter.CloseWrite()
+	}
+	return conn.Close()
+}
+
 func (c *realityMirrorConn) Read(b []byte) (int, error) {
 	c.Unlock()
 	runtime.Gosched()
@@ -482,9 +493,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			}
 			_, copyErr := io.Copy(target, newRateLimitedConn(underlying, &config.LimitFallbackUpload))
 			if copyErr == nil {
-				if closeWriter, ok := target.(interface{ CloseWrite() error }); ok {
-					_ = closeWriter.CloseWrite()
-				}
+				_ = realityCloseWrite(target)
 			} else {
 				_ = target.Close()
 			}
@@ -607,9 +616,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 				go func() {
 					_, copyErr := io.Copy(target, newRateLimitedConn(underlying, &config.LimitFallbackUpload))
 					if copyErr == nil {
-						if closeWriter, ok := target.(interface{ CloseWrite() error }); ok {
-							_ = closeWriter.CloseWrite()
-						}
+						_ = realityCloseWrite(target)
 					} else {
 						_ = target.Close()
 					}
@@ -618,6 +625,7 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			}
 			conn.Write(s2cSaved)
 			io.Copy(underlying, newRateLimitedConn(target, &config.LimitFallbackDownload))
+			_ = realityCloseWrite(underlying)
 		}
 		waitGroup.Done()
 	}()

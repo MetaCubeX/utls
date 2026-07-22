@@ -901,6 +901,12 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]EncryptedClientHelloKey{
 				{Config: []byte{1}, PrivateKey: []byte{1}},
 			}))
+		case "JLSConfig":
+			f.Set(reflect.ValueOf(&JLSConfig{
+				Enable: true,
+				User:   JLSUser{Username: "u", Password: "p"},
+				Users:  []JLSUser{{Username: "u", Password: "p"}},
+			}))
 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
 			continue // these are unexported fields that are handled separately
 		case "ApplicationSettings": // [UTLS] ALPS (Application Settings)

@@ -71,6 +71,10 @@ type Conn struct {
 	// or sending NewSessionTicket messages.
 	resumptionSecret []byte
 	echAccepted      bool
+	// JLS BEGIN: per-connection ShadowQUIC JLS state.
+	jlsState jlsState
+	jlsUser  JLSUser
+	// JLS END
 
 	// ticketKeys is the set of active session ticket keys for this
 	// connection. The first one is used to encrypt new tickets and
@@ -876,6 +880,14 @@ func (c *Conn) sendAlertLocked(err alert) error {
 	if c.quic != nil {
 		return c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
 	}
+	// JLS BEGIN: keep pre-write TCP handshake failures silent for transparent fallback.
+	if c.canFallbackJLS() {
+		if err == alertCloseNotify {
+			return nil
+		}
+		return c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
+	}
+	// JLS END
 
 	switch err {
 	case alertNoRenegotiation, alertCloseNotify:
@@ -1628,9 +1640,16 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {
-		// If an error occurred during the handshake try to flush the
-		// alert that might be left in the buffer.
-		c.flush()
+		// JLS BEGIN: do not commit a buffered server flight when fallback is still possible.
+		if c.canFallbackJLS() {
+			c.sendBuf = nil
+			c.buffering = false
+		} else {
+			// If an error occurred during the handshake try to flush the
+			// alert that might be left in the buffer.
+			c.flush()
+		}
+		// JLS END
 	}
 
 	if c.handshakeErr == nil && !c.isHandshakeComplete.Load() {
@@ -1716,6 +1735,12 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 		state.ekm = c.ekm
 	}
 	state.ECHAccepted = c.echAccepted
+	// JLS BEGIN: report authenticated ShadowQUIC JLS user through ConnectionState.
+	state.JLS.Status = c.jlsStatus()
+	if state.JLS.Status == JLSAuthenticated {
+		state.JLS.User = c.jlsUser.Username
+	}
+	// JLS END
 	// [UTLS SECTION START]
 	c.utlsConnectionStateLocked(&state)
 	// [UTLS SECTION END]

@@ -128,6 +128,16 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 		}
 	}
 
+	// JLS BEGIN: authenticate ShadowQUIC JLS ServerHello before hashing it.
+	if c.didHRR {
+		// JLS v3 does not permit HelloRetryRequest at any stage. Continue as
+		// ordinary TLS and verify the camouflage certificate instead.
+		c.jlsState = jlsStateAuthFailed
+	} else if err := c.authenticateJLSServerHello(hs.serverHello); err != nil {
+		return err
+	}
+	// JLS END
+
 	if err := transcriptMsg(hs.serverHello, hs.transcript); err != nil {
 		return err
 	}
@@ -789,6 +799,12 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 		return unexpectedMessageError(certVerify, msg)
 	}
 
+	// JLS BEGIN: JLS-authenticated camouflage certificates skip signature validation.
+	if c.jlsAuthenticated() {
+		return transcriptMsg(certVerify, hs.transcript)
+	}
+	// JLS END
+
 	// See RFC 8446, Section 4.4.3.
 	// We don't use hs.hello.supportedSignatureAlgorithms because it might
 	// include PKCS#1 v1.5 and SHA-1 if the ClientHello also supported TLS 1.2.
@@ -1009,6 +1025,9 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 
 	session := c.sessionState()
 	session.secret = psk
+	// JLS BEGIN: bind the authenticated JLS identity to this ticket's PSK.
+	c.markJLSAuthenticatedSession(session)
+	// JLS END
 	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
 	session.ageAdd = msg.ageAdd
 	session.EarlyData = c.quic != nil && msg.maxEarlyData == 0xffffffff // RFC 9001, Section 4.6.1

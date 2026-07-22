@@ -491,6 +491,16 @@ func (c *UConn) clientHandshake(ctx context.Context) (err error) {
 	}
 	// [SHADOWTLS SECTION ENDS]
 
+	// JLS BEGIN: replace ClientHello random with ShadowQUIC JLS authentication bytes.
+	if err := c.applyJLSClientHello(hello, session, binderKey); err != nil {
+		return err
+	}
+	if c.HandshakeState.Hello != nil {
+		c.HandshakeState.Hello.Random = hello.random
+		c.HandshakeState.Hello.Raw = hello.original
+	}
+	// JLS END
+
 	if _, err := c.writeHandshakeRecord(hello, nil); err != nil {
 		return err
 	}

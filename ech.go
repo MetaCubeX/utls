@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"slices"
+	"golang.org/x/exp/slices"
 	"strings"
 
-	"github.com/refraction-networking/utls/internal/hpke"
+	"github.com/metacubex/utls/internal/hpke"
 
 	"golang.org/x/crypto/cryptobyte"
 )
@@ -224,7 +224,10 @@ func encodeInnerClientHelloReorderOuterExts(inner *clientHelloMsg, maxNameLength
 
 	var paddingLen int
 	if inner.serverName != "" {
-		paddingLen = max(0, maxNameLength-len(inner.serverName))
+		paddingLen = maxNameLength - len(inner.serverName)
+		if paddingLen < 0 {
+			paddingLen = 0
+		}
 	} else {
 		paddingLen = maxNameLength + 9
 	}

@@ -9,8 +9,8 @@ package tls13
 import (
 	fips140 "hash"
 
-	"github.com/refraction-networking/utls/internal/byteorder"
-	"github.com/refraction-networking/utls/internal/hkdf"
+	"github.com/metacubex/utls/internal/byteorder"
+	"github.com/metacubex/utls/internal/hkdf"
 )
 
 // We don't set the service indicator in this package but we delegate that to
@@ -18,7 +18,7 @@ import (
 // its own.
 
 // ExpandLabel implements HKDF-Expand-Label from RFC 8446, Section 7.1.
-func ExpandLabel[H fips140.Hash](hash func() H, secret []byte, label string, context []byte, length int) []byte {
+func ExpandLabel(hash func() fips140.Hash, secret []byte, label string, context []byte, length int) []byte {
 	if len("tls13 ")+len(label) > 255 || len(context) > 255 {
 		// It should be impossible for this to panic: labels are fixed strings,
 		// and context is either a fixed-length computed hash, or parsed from a
@@ -40,14 +40,14 @@ func ExpandLabel[H fips140.Hash](hash func() H, secret []byte, label string, con
 	return hkdf.Expand(hash, secret, string(hkdfLabel), length)
 }
 
-func extract[H fips140.Hash](hash func() H, newSecret, currentSecret []byte) []byte {
+func extract(hash func() fips140.Hash, newSecret, currentSecret []byte) []byte {
 	if newSecret == nil {
 		newSecret = make([]byte, hash().Size())
 	}
 	return hkdf.Extract(hash, newSecret, currentSecret)
 }
 
-func deriveSecret[H fips140.Hash](hash func() H, secret []byte, label string, transcript fips140.Hash) []byte {
+func deriveSecret(hash func() fips140.Hash, secret []byte, label string, transcript fips140.Hash) []byte {
 	if transcript == nil {
 		transcript = hash()
 	}
@@ -71,7 +71,7 @@ type EarlySecret struct {
 	hash   func() fips140.Hash
 }
 
-func NewEarlySecret[H fips140.Hash](hash func() H, psk []byte) *EarlySecret {
+func NewEarlySecret(hash func() fips140.Hash, psk []byte) *EarlySecret {
 	return &EarlySecret{
 		secret: extract(hash, psk, nil),
 		hash:   func() fips140.Hash { return hash() },

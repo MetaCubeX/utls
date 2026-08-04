@@ -26,7 +26,7 @@ import (
 	"time"
 	_ "unsafe" // for linkname
 
-	"github.com/refraction-networking/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/fips140tls"
 )
 
 const (
@@ -306,6 +306,10 @@ type ConnectionState struct {
 	// and accepted by the server. Currently, ECH is supported only on the
 	// client side.
 	ECHAccepted bool
+
+	// JLS BEGIN: expose ShadowQUIC JLS authentication state.
+	JLS JLSState
+	// JLS END
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
@@ -903,6 +907,10 @@ type Config struct {
 	// clients, see the EncryptedClientHelloConfigList field.
 	EncryptedClientHelloKeys []EncryptedClientHelloKey
 
+	// JLS BEGIN: ShadowQUIC JLS configuration hook.
+	JLSConfig *JLSConfig
+	// JLS END
+
 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
 	mutex sync.RWMutex
 	// sessionTicketKeys contains zero or more ticket keys. If set, it means
@@ -914,6 +922,8 @@ type Config struct {
 	// autoSessionTicketKeys is like sessionTicketKeys but is owned by the
 	// auto-rotation logic. See Config.ticketKeys.
 	autoSessionTicketKeys []ticketKey
+
+	SessionIDGenerator func(clientHello []byte, sessionID []byte) error
 }
 
 // EncryptedClientHelloKey holds a private key that is associated
@@ -1018,8 +1028,12 @@ func (c *Config) Clone() *Config {
 		EncryptedClientHelloKeys:            c.EncryptedClientHelloKeys,
 		sessionTicketKeys:                   c.sessionTicketKeys,
 		autoSessionTicketKeys:               c.autoSessionTicketKeys,
+		// JLS BEGIN: preserve ShadowQUIC JLS configuration on clone.
+		JLSConfig: c.JLSConfig,
+		// JLS END
 
 		PreferSkipResumptionOnNilExtension: c.PreferSkipResumptionOnNilExtension, // [UTLS]
+		SessionIDGenerator:                 c.SessionIDGenerator,
 	}
 }
 

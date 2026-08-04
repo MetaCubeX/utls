@@ -7,10 +7,11 @@ package tls
 import (
 	"crypto"
 	"crypto/ecdh"
-	"crypto/mlkem"
 	"crypto/x509"
 	"hash"
 	"time"
+
+	"github.com/metacubex/utls/internal/mlkem"
 )
 
 // ClientHandshakeState includes both TLS 1.3-only and TLS 1.2-only states,
@@ -37,16 +38,6 @@ type PubClientHandshakeState struct {
 
 // TLS 1.3 only
 type TLS13OnlyState struct {
-	// Deprecated: Use KeyShareKeys instead. KeyShareKeys will take precedence if both are set.
-	// Support may be removed in the future.
-	EcdheKey *ecdh.PrivateKey
-	// Deprecated: Use KeyShareKeys instead. This variable is no longer used.
-	// Will be removed in the future.
-	KeySharesParams *KeySharesParameters
-	// Deprecated: Use KeyShareKeys instead. This variable is no longer used.
-	// Will be removed in the future.
-	KEMKey *KemPrivateKey
-
 	KeyShareKeys  *KeySharePrivateKeys
 	Suite         *PubCipherSuiteTLS13
 	EarlySecret   []byte
@@ -67,12 +58,6 @@ type TLS12OnlyState struct {
 func (chs *TLS13OnlyState) private13KeyShareKeys() *keySharePrivateKeys {
 	if chs.KeyShareKeys != nil {
 		return chs.KeyShareKeys.ToPrivate()
-	}
-
-	if chs.EcdheKey != nil {
-		return &keySharePrivateKeys{
-			ecdhe: chs.EcdheKey,
-		}
 	}
 
 	return nil

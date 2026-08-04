@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/refraction-networking/utls/internal/tls12"
+	"github.com/metacubex/utls/internal/tls12"
 )
 
 type prfFunc func(secret []byte, label string, seed []byte, keyLen int) []byte

@@ -9,20 +9,21 @@ import (
 	"context"
 	"crypto"
 	"crypto/hmac"
-	"crypto/mlkem"
 	"crypto/rsa"
 	"errors"
+	"fmt"
+	"golang.org/x/exp/slices"
 	"hash"
 	"io"
-	"slices"
 	"sort"
 	"time"
 
-	"github.com/refraction-networking/utls/internal/byteorder"
-	"github.com/refraction-networking/utls/internal/fips140tls"
-	"github.com/refraction-networking/utls/internal/hkdf"
-	"github.com/refraction-networking/utls/internal/hpke"
-	"github.com/refraction-networking/utls/internal/tls13"
+	"github.com/metacubex/utls/internal/byteorder"
+	"github.com/metacubex/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/hkdf"
+	"github.com/metacubex/utls/internal/hpke"
+	"github.com/metacubex/utls/internal/mlkem"
+	"github.com/metacubex/utls/internal/tls13"
 )
 
 // maxClientPSKIdentities is the number of client PSK identities the server will
@@ -146,6 +147,12 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		return errors.New("tls: TLS 1.3 client supports illegal compression methods")
 	}
 
+	// JLS BEGIN: authenticate ShadowQUIC JLS ClientHello before producing ServerHello.
+	if err := c.authenticateJLSClientHello(hs.clientHello); err != nil {
+		return err
+	}
+	// JLS END
+
 	hs.hello.random = make([]byte, 32)
 	if _, err := io.ReadFull(c.config.rand(), hs.hello.random); err != nil {
 		c.sendAlert(alertInternalError)
@@ -237,6 +244,12 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		}
 	}
 	if clientKeyShare == nil {
+		// JLS BEGIN: JLS v3 does not permit HelloRetryRequest at any stage.
+		if c.jlsAuthenticated() {
+			c.jlsState = jlsStateAuthFailed
+			return fmt.Errorf("tls: jls client requires HelloRetryRequest: %w", errJLSAuthFailed)
+		}
+		// JLS END
 		ks, err := hs.doHelloRetryRequest(selectedGroup)
 		if err != nil {
 			return err
@@ -727,6 +740,22 @@ func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
 
 func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	c := hs.c
+
+	// JLS BEGIN: replace ServerHello random with ShadowQUIC JLS authentication bytes.
+	if c.jlsAuthenticated() {
+		authData, err := jlsServerHelloAuthData(hs.hello)
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		fakeRandom, err := jlsBuildFakeRandom(c.jlsUser, hs.hello.random[:jlsRandomSeedLen], authData, c.config.rand())
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		hs.hello.random = fakeRandom
+	}
+	// JLS END
 
 	if hs.echContext != nil {
 		copy(hs.hello.random[32-8:], make([]byte, 8))

@@ -10,7 +10,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/mlkem"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
@@ -23,10 +22,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/refraction-networking/utls/internal/byteorder"
-	"github.com/refraction-networking/utls/internal/fips140tls"
-	"github.com/refraction-networking/utls/internal/hpke"
-	"github.com/refraction-networking/utls/internal/tls13"
+	"github.com/metacubex/utls/internal/byteorder"
+	"github.com/metacubex/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/hpke"
+	"github.com/metacubex/utls/internal/mlkem"
+	"github.com/metacubex/utls/internal/tls13"
 )
 
 type clientHandshakeState struct {
@@ -326,6 +326,31 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 
 	c.serverName = hello.serverName
 
+	// [SHADOWTLS SECTION BEGINS]
+	// A random session ID is used to detect when the server accepted a ticket
+	// and is resuming a session (see RFC 5077). In TLS 1.3, it's always set as
+	// a compatibility measure (see RFC 8446, Section 4.1.2).
+	if c.config.SessionIDGenerator != nil {
+		hello.sessionId = make([]byte, 32)
+		hello.original = nil
+		data, err := hello.marshal()
+		if err != nil {
+			return err
+		}
+		err = c.config.SessionIDGenerator(data, hello.sessionId)
+		if err != nil {
+			return errors.New("tls: generate session id failed: " + err.Error())
+		}
+		hello.original = nil
+	}
+	// [SHADOWTLS SECTION ENDS]
+
+	// JLS BEGIN: replace ClientHello random with ShadowQUIC JLS authentication bytes.
+	if err := c.applyJLSClientHello(hello, session, binderKey); err != nil {
+		return err
+	}
+	// JLS END
+
 	if _, err := c.writeHandshakeRecord(hello, nil); err != nil {
 		return err
 	}
@@ -459,7 +484,10 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 		}
 	}
 	// [UTLS SECTION END]
-	if !c.config.InsecureSkipVerify {
+	// JLS BEGIN: JLS-authenticated sessions intentionally have no verified camouflage chain.
+	jlsAuthenticatedSession := c.canResumeJLSAuthenticatedSession(session)
+	// JLS END
+	if !c.config.InsecureSkipVerify && !jlsAuthenticatedSession {
 		if len(session.verifiedChains) == 0 {
 			// The original connection had InsecureSkipVerify, while this doesn't.
 			return nil, nil, nil, nil
@@ -1181,6 +1209,9 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 			}
 		}
+	} else if c.jlsAuthenticated() {
+		// JLS BEGIN: authenticated camouflage certs skip normal chain verification.
+		// JLS END
 	} else if !c.config.InsecureSkipVerify {
 		// [UTLS SECTION START]
 		opts := x509.VerifyOptions{
@@ -1227,6 +1258,12 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 	c.activeCertHandles = activeHandles
 	c.peerCertificates = certs
+
+	// JLS BEGIN: external verifiers are skipped after successful JLS authentication.
+	if c.jlsAuthenticated() {
+		return nil
+	}
+	// JLS END
 
 	if c.config.VerifyPeerCertificate != nil && !echRejected {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {

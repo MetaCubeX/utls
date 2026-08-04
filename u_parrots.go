@@ -6,7 +6,6 @@ package tls
 
 import (
 	"crypto/ecdh"
-	"crypto/mlkem"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -19,7 +18,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/refraction-networking/utls/dicttls"
+	"github.com/metacubex/utls/dicttls"
+	"github.com/metacubex/utls/internal/mlkem"
 )
 
 var ErrUnknownClientHelloID = errors.New("tls: unknown ClientHelloID")

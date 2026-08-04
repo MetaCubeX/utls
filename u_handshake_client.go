@@ -14,9 +14,9 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"
-	"github.com/refraction-networking/utls/internal/fips140tls"
-	"github.com/refraction-networking/utls/internal/hpke"
-	"github.com/refraction-networking/utls/internal/tls13"
+	"github.com/metacubex/utls/internal/fips140tls"
+	"github.com/metacubex/utls/internal/hpke"
+	"github.com/metacubex/utls/internal/tls13"
 )
 
 // This function is called by (*clientHandshakeStateTLS13).readServerCertificate()
@@ -489,6 +489,35 @@ func (c *UConn) clientHandshake(ctx context.Context) (err error) {
 	}
 
 	c.serverName = hello.serverName
+
+	// [SHADOWTLS SECTION BEGINS]
+	// A random session ID is used to detect when the server accepted a ticket
+	// and is resuming a session (see RFC 5077). In TLS 1.3, it's always set as
+	// a compatibility measure (see RFC 8446, Section 4.1.2).
+	if c.config.SessionIDGenerator != nil {
+		hello.sessionId = make([]byte, 32)
+		hello.original = nil
+		data, err := hello.marshal()
+		if err != nil {
+			return err
+		}
+		err = c.config.SessionIDGenerator(data, hello.sessionId)
+		if err != nil {
+			return errors.New("tls: generate session id failed: " + err.Error())
+		}
+		hello.original = nil
+	}
+	// [SHADOWTLS SECTION ENDS]
+
+	// JLS BEGIN: replace ClientHello random with ShadowQUIC JLS authentication bytes.
+	if err := c.applyJLSClientHello(hello, session, binderKey); err != nil {
+		return err
+	}
+	if c.HandshakeState.Hello != nil {
+		c.HandshakeState.Hello.Random = hello.random
+		c.HandshakeState.Hello.Raw = hello.original
+	}
+	// JLS END
 
 	if _, err := c.writeHandshakeRecord(hello, nil); err != nil {
 		return err

@@ -71,6 +71,10 @@ type Conn struct {
 	// or sending NewSessionTicket messages.
 	resumptionSecret []byte
 	echAccepted      bool
+	// JLS BEGIN: per-connection ShadowQUIC JLS state.
+	jlsState jlsState
+	jlsUser  JLSUser
+	// JLS END
 
 	// ticketKeys is the set of active session ticket keys for this
 	// connection. The first one is used to encrypt new tickets and
@@ -185,6 +189,11 @@ type halfConn struct {
 
 	level         QUICEncryptionLevel // current QUIC encryption level
 	trafficSecret []byte              // current TLS 1.3 traffic secret
+
+	// [REALITY SECTION BEGINS]
+	handshakeLen [7]uint16
+	handshakeBuf []byte
+	// [REALITY SECTION ENDS]
 }
 
 type permanentError struct {
@@ -524,9 +533,42 @@ func (hc *halfConn) encrypt(record, payload []byte, rand io.Reader) ([]byte, err
 
 			// Encrypt the actual ContentType and replace the plaintext one.
 			record = append(record, record[0])
+			// [REALITY SECTION BEGINS]
+			padding := 0
+			if recordType(record[0]) == recordTypeHandshake && hc.handshakeLen[1] != 0 {
+				switch payload[0] {
+				case typeEncryptedExtensions:
+					padding = int(hc.handshakeLen[2])
+					hc.handshakeLen[2] = 0
+				case typeCertificate:
+					padding = int(hc.handshakeLen[3])
+					hc.handshakeLen[3] = 0
+				case typeCertificateVerify:
+					padding = int(hc.handshakeLen[4])
+					hc.handshakeLen[4] = 0
+				case typeFinished:
+					padding = int(hc.handshakeLen[5])
+					hc.handshakeLen[5] = 0
+				case typeNewSessionTicket:
+					padding = int(hc.handshakeLen[6])
+					hc.handshakeLen[6] = 0
+					record[5] = byte(recordTypeApplicationData)
+					record[6] = 0
+				}
+				padding -= len(record) + c.Overhead()
+				if padding < 0 {
+					return nil, fmt.Errorf("payload[0]: %v, padding: %v", payload[0], padding)
+				}
+				record = append(record, make([]byte, padding)...)
+			}
+			// [REALITY SECTION ENDS]
+
 			record[0] = byte(recordTypeApplicationData)
 
 			n := len(payload) + 1 + c.Overhead()
+			// [REALITY SECTION BEGINS]
+			n += padding
+			// [REALITY SECTION ENDS]
 			record[3] = byte(n >> 8)
 			record[4] = byte(n)
 
@@ -838,6 +880,14 @@ func (c *Conn) sendAlertLocked(err alert) error {
 	if c.quic != nil {
 		return c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
 	}
+	// JLS BEGIN: keep pre-write TCP handshake failures silent for transparent fallback.
+	if c.canFallbackJLS() {
+		if err == alertCloseNotify {
+			return nil
+		}
+		return c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
+	}
+	// JLS END
 
 	switch err {
 	case alertNoRenegotiation, alertCloseNotify:
@@ -1057,6 +1107,17 @@ func (c *Conn) writeHandshakeRecord(msg handshakeMessage, transcript transcriptH
 	if transcript != nil {
 		transcript.Write(data)
 	}
+
+	// [REALITY SECTION BEGINS]
+	if c.out.handshakeBuf != nil && len(data) > 0 && data[0] != typeServerHello {
+		c.out.handshakeBuf = append(c.out.handshakeBuf, data...)
+		if data[0] != typeFinished {
+			return len(data), nil
+		}
+		data = c.out.handshakeBuf
+		c.out.handshakeBuf = nil
+	}
+	// [REALITY SECTION ENDS]
 
 	return c.writeRecordLocked(recordTypeHandshake, data)
 }
@@ -1579,9 +1640,16 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {
-		// If an error occurred during the handshake try to flush the
-		// alert that might be left in the buffer.
-		c.flush()
+		// JLS BEGIN: do not commit a buffered server flight when fallback is still possible.
+		if c.canFallbackJLS() {
+			c.sendBuf = nil
+			c.buffering = false
+		} else {
+			// If an error occurred during the handshake try to flush the
+			// alert that might be left in the buffer.
+			c.flush()
+		}
+		// JLS END
 	}
 
 	if c.handshakeErr == nil && !c.isHandshakeComplete.Load() {
@@ -1667,6 +1735,12 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 		state.ekm = c.ekm
 	}
 	state.ECHAccepted = c.echAccepted
+	// JLS BEGIN: report authenticated ShadowQUIC JLS user through ConnectionState.
+	state.JLS.Status = c.jlsStatus()
+	if state.JLS.Status == JLSAuthenticated {
+		state.JLS.User = c.jlsUser.Username
+	}
+	// JLS END
 	// [UTLS SECTION START]
 	c.utlsConnectionStateLocked(&state)
 	// [UTLS SECTION END]

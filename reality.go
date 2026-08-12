@@ -570,6 +570,17 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 			}
 			conn.Write(s2cSaved)
 			io.Copy(underlying, newRateLimitedConn(target, &config.LimitFallbackDownload))
+			// client ---underlying--- server ---target--- dest
+			// The dest has closed its side. Propagate that to the client with a
+			// half-close instead of leaving the connection open: the teardown
+			// below waits on the upload io.Copy, which only returns once the
+			// client closes, so a client that simply never closes keeps the
+			// connection alive long after the real dest would have dropped it.
+			// That difference is remotely observable and distinguishes this
+			// server from the dest it is imitating.
+			if cw, ok := underlying.(interface{ CloseWrite() error }); ok {
+				cw.CloseWrite()
+			}
 		}
 		waitGroup.Done()
 	}()

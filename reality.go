@@ -20,6 +20,7 @@ import (
 	"net"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/metacubex/utls/internal/mlkem"
@@ -113,10 +114,15 @@ type RealityConfig struct {
 	LimitFallbackDownload RealityLimitFallback
 
 	Config
+
+	// postHandshake caches the target's learned post-handshake record
+	// pattern. It is created lazily and shared with clones so that clones do
+	// not probe the target again.
+	postHandshake atomic.Pointer[realityPostHandshakeCache]
 }
 
 func (a *RealityConfig) Clone() *RealityConfig {
-	return &RealityConfig{
+	c := &RealityConfig{
 		DialContext:           a.DialContext,
 		Log:                   a.Log,
 		Type:                  a.Type,
@@ -132,6 +138,8 @@ func (a *RealityConfig) Clone() *RealityConfig {
 		LimitFallbackDownload: a.LimitFallbackDownload,
 		Config:                *a.Config.Clone(),
 	}
+	c.postHandshake.Store(a.postHandshakeCache())
+	return c
 }
 
 type rateLimitedConn struct {
@@ -212,6 +220,10 @@ type realityServerHandshakeStateTLS13 struct {
 	ClientTime    time.Time
 	ClientShortId [8]byte
 	Config        *RealityConfig
+
+	// firstFlightPostHandshakeRecords counts the records after the server
+	// Finished that were already mirrored in the first flight.
+	firstFlightPostHandshakeRecords int
 }
 
 func (hs *realityServerHandshakeStateTLS13) handshake() error {
@@ -296,6 +308,7 @@ func (hs *realityServerHandshakeStateTLS13) handshake() error {
 		if _, err := c.realityWriteRecord(recordTypeHandshake, []byte{typeNewSessionTicket}); err != nil {
 			return err
 		}
+		hs.firstFlightPostHandshakeRecords++
 	}
 	// Note that at this point we could start sending application data without
 	// waiting for the client's second flight, but the application might not
@@ -554,6 +567,13 @@ func RealityServer(ctx context.Context, conn net.Conn, config *RealityConfig) (*
 				config.Log("REALITY remoteAddr: %v hs.readClientFinished() err: %v", remoteAddr, err)
 			}
 			if err != nil {
+				break
+			}
+			err = hs.imitatePostHandshakeRecords()
+			if err != nil {
+				if config.Log != nil {
+					config.Log("REALITY remoteAddr: %v hs.imitatePostHandshakeRecords() err: %v", remoteAddr, err)
+				}
 				break
 			}
 			hs.c.isHandshakeComplete.Store(true)

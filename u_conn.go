@@ -358,14 +358,18 @@ func (c *UConn) handshakeContext(ctx context.Context) (ret error) {
 	defer c.in.Unlock()
 
 	// [uTLS section begins]
+	handshakeFn := c.handshakeFn
 	if c.isClient {
-		err := c.BuildHandshakeState()
-		if err != nil {
-			return err
+		if err := c.BuildHandshakeState(); err != nil {
+			if c.quic == nil {
+				return err
+			}
+			// Let QUIC build errors go through the normal handshake cleanup.
+			handshakeFn = func(context.Context) error { return err }
 		}
 	}
+	c.handshakeErr = handshakeFn(handshakeCtx)
 	// [uTLS section ends]
-	c.handshakeErr = c.handshakeFn(handshakeCtx)
 	if c.handshakeErr == nil {
 		c.handshakes++
 	} else {

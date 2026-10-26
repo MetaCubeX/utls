@@ -513,7 +513,11 @@ func (c *UConn) clientHandshake(ctx context.Context) (err error) {
 	if hello.earlyData {
 		suite := cipherSuiteTLS13ByID(session.cipherSuite)
 		transcript := suite.hash.New()
-		if err := transcriptMsg(hello, transcript); err != nil {
+		transcriptHello := hello
+		if ech != nil {
+			transcriptHello = ech.innerHello
+		}
+		if err := transcriptMsg(transcriptHello, transcript); err != nil {
 			return err
 		}
 		earlyTrafficSecret := earlySecret.ClientEarlyTrafficSecret(transcript)

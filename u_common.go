@@ -662,9 +662,10 @@ var (
 	HelloSafari_16_0 = ClientHelloID{helloSafari, "16.0", nil, nil}
 	HelloSafari_26_3 = ClientHelloID{helloSafari, "26.3", nil, nil}
 
-	Hello360_Auto = Hello360_7_5 // Hello360_11_0 seems to be incompatible with this library
+	Hello360_Auto = Hello360_23_0
 	Hello360_7_5  = ClientHelloID{hello360, "7.5", nil, nil}
 	Hello360_11_0 = ClientHelloID{hello360, "11.0", nil, nil}
+	Hello360_23_0 = ClientHelloID{hello360, "23.0", nil, nil}
 
 	HelloQQ_Auto = HelloQQ_11_1
 	HelloQQ_11_1 = ClientHelloID{helloQQ, "11.1", nil, nil}

@@ -426,6 +426,12 @@ type ClientSessionCache interface {
 type SignatureScheme uint16
 
 const (
+	// ML-DSA signature scheme identifiers for ClientHello fingerprints. This fork
+	// does not implement ML-DSA CertificateVerify.
+	MLDSA44 SignatureScheme = 0x0904
+	MLDSA65 SignatureScheme = 0x0905
+	MLDSA87 SignatureScheme = 0x0906
+
 	// RSASSA-PKCS1-v1_5 algorithms.
 	PKCS1WithSHA256 SignatureScheme = 0x0401
 	PKCS1WithSHA384 SignatureScheme = 0x0501

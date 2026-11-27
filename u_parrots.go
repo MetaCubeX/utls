@@ -2349,6 +2349,20 @@ func utlsIdToSpec(id ClientHelloID) (ClientHelloSpec, error) {
 				&UtlsGREASEExtension{},
 			},
 		}, nil
+	case Hello360_23_0:
+		spec, err := utlsIdToSpec(HelloChrome_133)
+		if err != nil {
+			return ClientHelloSpec{}, err
+		}
+		for i, ext := range spec.Extensions {
+			switch e := ext.(type) {
+			case *ApplicationSettingsExtensionNew:
+				spec.Extensions[i] = &ApplicationSettingsExtension{SupportedProtocols: e.SupportedProtocols}
+			case *SupportedVersionsExtension:
+				e.Versions = append(e.Versions, VersionTLS11, VersionTLS10)
+			}
+		}
+		return spec, nil
 	case Hello360_7_5:
 		return ClientHelloSpec{
 			CipherSuites: []uint16{

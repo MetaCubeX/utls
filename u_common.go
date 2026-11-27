@@ -666,8 +666,9 @@ var (
 	Hello360_7_5  = ClientHelloID{hello360, "7.5", nil, nil}
 	Hello360_11_0 = ClientHelloID{hello360, "11.0", nil, nil}
 
-	HelloQQ_Auto = HelloQQ_11_1
+	HelloQQ_Auto = HelloQQ_22_5
 	HelloQQ_11_1 = ClientHelloID{helloQQ, "11.1", nil, nil}
+	HelloQQ_22_5 = ClientHelloID{helloQQ, "22.5", nil, nil}
 )
 
 type Weights struct {

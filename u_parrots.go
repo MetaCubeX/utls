@@ -2530,6 +2530,8 @@ func utlsIdToSpec(id ClientHelloID) (ClientHelloSpec, error) {
 				},
 			},
 		}, nil
+	case HelloQQ_22_5:
+		return utlsIdToSpec(HelloChrome_133)
 	case HelloQQ_11_1:
 		return ClientHelloSpec{
 			TLSVersMin: VersionTLS10,

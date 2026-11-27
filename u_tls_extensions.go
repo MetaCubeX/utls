@@ -79,6 +79,10 @@ func ExtensionFromID(id uint16) TLSExtension {
 		return &FakeChannelIDExtension{}
 	case utlsExtensionECH:
 		return &GREASEEncryptedClientHelloExtension{}
+	case utlsExtensionTrustAnchors:
+		return &TrustAnchorsExtension{}
+	case utlsExtensionServerPadding:
+		return &FakeServerPaddingExtension{}
 	case extensionRenegotiationInfo:
 		return &RenegotiationInfoExtension{}
 	default:
@@ -877,6 +881,33 @@ type GenericExtension struct {
 	Data []byte
 }
 
+// FakeServerPaddingExtension sends BoringSSL's experimental two-byte padding request.
+// Chrome 158.0.8127.88 sends a zero on fresh connections in the reference capture.
+type FakeServerPaddingExtension struct {
+	PaddingLen uint16 `json:"padding_len"`
+}
+
+func (*FakeServerPaddingExtension) writeToUConn(*UConn) error { return nil }
+func (*FakeServerPaddingExtension) Len() int                  { return 6 }
+
+func (e *FakeServerPaddingExtension) Read(b []byte) (int, error) {
+	if len(b) < e.Len() {
+		return 0, io.ErrShortBuffer
+	}
+	b[0], b[1] = byte(utlsExtensionServerPadding>>8), byte(utlsExtensionServerPadding&0xff)
+	b[2], b[3] = 0, 2
+	b[4], b[5] = byte(e.PaddingLen>>8), byte(e.PaddingLen)
+	return e.Len(), io.EOF
+}
+
+func (e *FakeServerPaddingExtension) Write(b []byte) (int, error) {
+	if len(b) != 2 {
+		return 0, errors.New("server padding request must contain two bytes")
+	}
+	e.PaddingLen = uint16(b[0])<<8 | uint16(b[1])
+	return len(b), nil
+}
+
 func (e *GenericExtension) writeToUConn(uc *UConn) error {
 	return nil
 }
@@ -966,8 +997,13 @@ const (
 	ssl_grease_extension2
 	ssl_grease_version
 	ssl_grease_ticket_extension
-	ssl_grease_last_index = ssl_grease_ticket_extension
+	ssl_grease_ech_config_id
+	ssl_grease_signature_algorithm
+	ssl_grease_seed_count
 )
+
+// Preserve the array size accepted by the exported GetBoringGREASEValue helper.
+const ssl_grease_last_index = ssl_grease_ticket_extension
 
 // it is responsibility of user not to generate multiple grease extensions with same value
 type UtlsGREASEExtension struct {
@@ -981,6 +1017,10 @@ func (e *UtlsGREASEExtension) writeToUConn(uc *UConn) error {
 
 // will panic if ssl_grease_last_index[index] is out of bounds.
 func GetBoringGREASEValue(greaseSeed [ssl_grease_last_index]uint16, index int) uint16 {
+	return getBoringGREASEValue(greaseSeed[:], index)
+}
+
+func getBoringGREASEValue(greaseSeed []uint16, index int) uint16 {
 	// GREASE value is back from deterministic to random.
 	// https://github.com/google/boringssl/blob/a365138ac60f38b64bfc608b493e0f879845cb88/ssl/handshake_client.c#L530
 	ret := uint16(greaseSeed[index])
